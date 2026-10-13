@@ -130,7 +130,17 @@ const TRIP_ROOM_ID = "osaka-family-2026";
   </section>
 </main>
 
-<div id="item-dialog" class="hidden fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center">
+<div id="confirm-dialog" class="hidden fixed inset-0 z-[60] bg-black/40 flex items-center justify-center p-6">
+  <div class="bg-white rounded-2xl p-5 w-full max-w-sm">
+    <p id="confirm-message" class="text-base leading-relaxed"></p>
+    <div class="flex gap-2 mt-5">
+      <button id="confirm-cancel" type="button" class="flex-1 border border-stone-300 py-2.5 rounded-lg font-medium">取消</button>
+      <button id="confirm-ok" type="button" class="flex-1 bg-red-500 text-white py-2.5 rounded-lg font-bold">刪除</button>
+    </div>
+  </div>
+</div>
+
+<div id="item-dialog"class="hidden fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center">
   <form id="item-form" class="bg-white w-full max-w-md rounded-t-3xl sm:rounded-3xl p-5 space-y-3 max-h-[92vh] overflow-y-auto">
     <div class="flex items-center justify-between">
       <h3 id="item-dialog-title" class="text-lg font-bold">新增行程</h3>
@@ -267,6 +277,23 @@ function makeId() { return Date.now().toString(36) + Math.random().toString(36).
 function toEntries(map) { return Object.entries(map || {}); }
 function el(id) { return document.getElementById(id); }
 
+/* 手機的內建瀏覽器（LINE、FB 等）常會擋掉原生 confirm()，改用頁面內的確認視窗 */
+function askConfirm(message) {
+  return new Promise(resolve => {
+    const dialog = el('confirm-dialog');
+    const finish = answer => {
+      dialog.classList.add('hidden');
+      el('confirm-ok').onclick = null;
+      el('confirm-cancel').onclick = null;
+      resolve(answer);
+    };
+    el('confirm-message').textContent = message;
+    el('confirm-ok').onclick = () => finish(true);
+    el('confirm-cancel').onclick = () => finish(false);
+    dialog.classList.remove('hidden');
+  });
+}
+
 /* ---------- 行程（自行填寫） ---------- */
 const itineraryState = { data: {}, editingDay: null, editingId: null };
 
@@ -369,9 +396,11 @@ function bindItinerary(store) {
     const deleteButton = event.target.closest('[data-delete]');
     if (addButton) openItemDialog(Number(addButton.dataset.add), null);
     if (editButton) { const [day, id] = editButton.dataset.edit.split('|'); openItemDialog(Number(day), id); }
-    if (deleteButton && confirm('確定刪除這個行程？所有人的畫面都會同步移除。')) {
+    if (deleteButton) {
       const [day, id] = deleteButton.dataset.delete.split('|');
-      store.set(`${PATH_ITINERARY}/day${day}/${id}`, null);
+      askConfirm('確定刪除這個行程？所有人的畫面都會同步移除。').then(ok => {
+        if (ok) store.set(`${PATH_ITINERARY}/day${day}/${id}`, null);
+      });
     }
   });
 
@@ -595,9 +624,11 @@ function bindBudget(store) {
 
   el('member-summary').addEventListener('click', event => {
     const button = event.target.closest('[data-remove-member]');
-    if (button && confirm('確定移除這位成員？他過去的自費紀錄會保留，但顯示為「已移除成員」。')) {
-      store.set(`${PATH_MEMBERS}/${button.dataset.removeMember}`, null);
-    }
+    if (!button) return;
+    const memberId = button.dataset.removeMember;
+    askConfirm('確定移除這位成員？他過去的自費紀錄會保留，但顯示為「已移除成員」。').then(ok => {
+      if (ok) store.set(`${PATH_MEMBERS}/${memberId}`, null);
+    });
   });
 
   el('expense-form').addEventListener('submit', event => {
@@ -612,9 +643,11 @@ function bindBudget(store) {
 
   el('expense-list').addEventListener('click', event => {
     const button = event.target.closest('[data-delete-expense]');
-    if (button && confirm('確定刪除這筆花費？所有人的畫面都會同步移除。')) {
-      store.set(`${PATH_EXPENSES}/${button.dataset.deleteExpense}`, null);
-    }
+    if (!button) return;
+    const expenseId = button.dataset.deleteExpense;
+    askConfirm('確定刪除這筆花費？所有人的畫面都會同步移除。').then(ok => {
+      if (ok) store.set(`${PATH_EXPENSES}/${expenseId}`, null);
+    });
   });
 
   store.subscribe(PATH_MEMBERS, members => {
