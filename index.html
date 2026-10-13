@@ -87,27 +87,51 @@ const TRIP_ROOM_ID = "osaka-family-2026";
     <h2 class="text-xl font-bold mb-3"><i class="fa-solid fa-piggy-bank text-[#e0603f] mr-2"></i>公基金</h2>
 
     <div class="bg-white rounded-2xl border border-stone-200 shadow-sm p-4 mb-4">
-      <label class="text-xs text-stone-500">公基金總額（日圓）</label>
-      <input id="fund-total" type="number" inputmode="numeric" min="0" step="1" placeholder="例如 200000" class="field mt-1">
-      <div class="grid grid-cols-3 gap-2 mt-3 text-center">
-        <div class="bg-stone-50 rounded-xl p-2"><p class="text-[11px] text-stone-500">總額</p><p id="fund-total-view" class="font-bold">¥0</p></div>
-        <div class="bg-stone-50 rounded-xl p-2"><p class="text-[11px] text-stone-500">已支出</p><p id="fund-spent" class="font-bold text-[#e0603f]">¥0</p></div>
-        <div class="bg-stone-50 rounded-xl p-2"><p class="text-[11px] text-stone-500">剩餘</p><p id="fund-remaining" class="font-bold text-emerald-600">¥0</p></div>
+      <h3 class="font-bold mb-2"><i class="fa-solid fa-coins text-[#e0603f] mr-2"></i>匯率（日圓 → 台幣）</h3>
+      <div class="flex items-center gap-2">
+        <span class="shrink-0 text-sm">1 日圓 =</span>
+        <input id="rate-input" type="number" inputmode="decimal" min="0" step="0.0001" class="field">
+        <span class="shrink-0 text-sm">台幣</span>
+      </div>
+      <div class="flex items-center justify-between gap-2 mt-2">
+        <span id="rate-status" class="text-xs text-stone-400">全家共用，一個人改，大家同步。</span>
+        <button id="rate-fetch" type="button" class="shrink-0 text-sm text-[#e0603f] bg-orange-50 rounded-lg px-3 py-1.5">取得今日匯率</button>
       </div>
     </div>
+
+    <div class="bg-white rounded-2xl border border-stone-200 shadow-sm p-4 mb-4">
+      <h3 class="font-bold mb-2"><i class="fa-solid fa-piggy-bank text-[#e0603f] mr-2"></i>公基金現況</h3>
+      <div class="grid grid-cols-3 gap-2 text-center">
+        <div class="bg-stone-50 rounded-xl p-2"><p class="text-[11px] text-stone-500">目前總額</p><p id="fund-total-view" class="font-bold">¥0</p><p id="fund-total-twd" class="text-[11px] text-stone-400"></p></div>
+        <div class="bg-stone-50 rounded-xl p-2"><p class="text-[11px] text-stone-500">已支出</p><p id="fund-spent" class="font-bold text-[#e0603f]">¥0</p><p id="fund-spent-twd" class="text-[11px] text-stone-400"></p></div>
+        <div class="bg-stone-50 rounded-xl p-2"><p class="text-[11px] text-stone-500">剩餘</p><p id="fund-remaining" class="font-bold text-emerald-600">¥0</p><p id="fund-remaining-twd" class="text-[11px] text-stone-400"></p></div>
+      </div>
+    </div>
+
+    <form id="fund-adjust-form" class="bg-white rounded-2xl border border-stone-200 shadow-sm p-4 space-y-3 mb-4">
+      <h3 class="font-bold"><i class="fa-solid fa-plus-minus text-[#e0603f] mr-2"></i>調整公基金總額</h3>
+      <input id="fund-adjust-amount" type="number" inputmode="numeric" min="1" step="1" required placeholder="金額（日圓）" class="field">
+      <p id="fund-adjust-twd" class="text-xs text-stone-400 -mt-1"></p>
+      <input id="fund-adjust-note" type="text" maxlength="40" placeholder="備註（例：大家再各拿出 20000）" class="field">
+      <div class="grid grid-cols-2 gap-2">
+        <button type="button" data-adjust="1" class="bg-emerald-600 text-white font-bold py-3 rounded-lg active:scale-[.99]"><i class="fa-solid fa-plus mr-1"></i>增加總額</button>
+        <button type="button" data-adjust="-1" class="bg-stone-600 text-white font-bold py-3 rounded-lg active:scale-[.99]"><i class="fa-solid fa-minus mr-1"></i>扣除總額</button>
+      </div>
+    </form>
 
     <form id="fund-expense-form" class="bg-white rounded-2xl border border-stone-200 shadow-sm p-4 space-y-3 mb-4">
       <h3 class="font-bold"><i class="fa-solid fa-receipt text-[#e0603f] mr-2"></i>新增公基金支出</h3>
       <input id="fund-expense-name" type="text" required maxlength="40" placeholder="項目（例：全家晚餐、JR 車票）" class="field">
       <input id="fund-expense-amount" type="number" inputmode="numeric" min="1" step="1" required placeholder="金額（日圓）" class="field">
+      <p id="fund-expense-twd" class="text-xs text-stone-400 -mt-1"></p>
       <button type="submit" class="w-full bg-[#e0603f] text-white font-bold py-3 rounded-lg active:scale-[.99]"><i class="fa-solid fa-plus mr-1"></i>新增支出</button>
     </form>
 
     <div class="flex items-baseline justify-between mb-2">
-      <h3 class="font-bold">公基金支出紀錄</h3>
-      <p class="text-xs text-stone-500">共 <span id="fund-expense-count">0</span> 筆</p>
+      <h3 class="font-bold">公基金紀錄</h3>
+      <p class="text-xs text-stone-500">共 <span id="fund-record-count">0</span> 筆（增減與支出，依時間排序）</p>
     </div>
-    <ul id="fund-expense-list" class="space-y-2"></ul>
+    <ul id="fund-record-list" class="space-y-2"></ul>
   </section>
 
   <section id="view-family" class="hidden">
@@ -118,10 +142,12 @@ const TRIP_ROOM_ID = "osaka-family-2026";
       <div><label class="text-xs text-stone-500">類別</label><select id="family-category" class="field mt-1"></select></div>
       <input id="family-name" type="text" required maxlength="40" placeholder="項目（例：章魚燒、藥妝）" class="field">
       <input id="family-amount" type="number" inputmode="numeric" min="1" step="1" required placeholder="金額（日圓）" class="field">
+      <p id="family-twd" class="text-xs text-stone-400 -mt-1"></p>
       <button type="submit" class="w-full bg-[#e0603f] text-white font-bold py-3 rounded-lg active:scale-[.99]"><i class="fa-solid fa-plus mr-1"></i>新增花費</button>
     </form>
 
-    <h3 class="font-bold mb-2">我的花費紀錄（點名字可收合）</h3>
+    <h3 class="font-bold">我的花費紀錄（點名字可收合）</h3>
+    <p id="family-rate-note" class="text-xs text-stone-400 mb-2"></p>
     <ul id="member-breakdown" class="space-y-3 mb-4"></ul>
   </section>
 
@@ -203,7 +229,10 @@ const PATH_ITINERARY = 'itinerary';
 const PATH_DAY_THEMES = 'dayThemes';
 const PATH_MEMBERS = 'members';
 const PATH_EXPENSES = 'expenses';
-const PATH_FUND_TOTAL = 'fundTotal';
+const PATH_FUND_ADJUSTMENTS = 'fundAdjustments';
+const PATH_EXCHANGE_RATE = 'exchangeRate';
+const DEFAULT_EXCHANGE_RATE = 0.21;
+const EXCHANGE_RATE_API_URL = 'https://open.er-api.com/v6/latest/JPY';
 const PATH_MEMOS = 'memos';
 const LOCAL_STORAGE_KEY = 'osakaTrip.localStore';
 const FIREBASE_PLACEHOLDER_PREFIX = 'YOUR_';
@@ -664,7 +693,23 @@ function bindChecklist(store) {
 const EXPENSE_CATEGORIES = {
   food: '🍜 餐飲', transport: '🚇 交通', shopping: '🛍️ 購物', ticket: '🎟️ 門票娛樂', other: '📝 其他'
 };
-const budgetState = { members: {}, expenses: {}, fundTotal: 0, collapsed: {} };
+const budgetState = { members: {}, expenses: {}, adjustments: {}, rate: null, collapsed: {} };
+
+function effectiveRate() { return budgetState.rate > 0 ? budgetState.rate : DEFAULT_EXCHANGE_RATE; }
+
+function twdText(yen) {
+  const twd = Math.round(Math.abs(Number(yen) || 0) * effectiveRate());
+  return `≈ NT$${twd.toLocaleString('en-US')}`;
+}
+
+function bindTwdPreview(inputId, outputId) {
+  const update = () => {
+    const amount = Number(el(inputId).value);
+    el(outputId).textContent = amount > 0 ? twdText(amount) : '';
+  };
+  el(inputId).addEventListener('input', update);
+  return update;
+}
 
 function isFundExpense(expense) { return !expense.source || expense.source === FUND_SOURCE; }
 
@@ -685,23 +730,54 @@ function renderExpenseRow(id, expense, badgeHtml) {
         <p class="font-medium truncate">${escapeHtml(expense.name)}</p>
         <p class="text-xs text-stone-400 mt-0.5">${badgeHtml} ${time}</p>
       </div>
-      <span class="font-bold text-[#e0603f]">${formatYen(expense.amount)}</span>
+      <span class="text-right"><span class="block font-bold text-[#e0603f]">${formatYen(expense.amount)}</span><span class="block text-[11px] text-stone-400">${twdText(expense.amount)}</span></span>
       <button data-delete-expense="${escapeHtml(id)}" class="text-stone-400 p-3 -mr-2" aria-label="刪除"><i class="fa-solid fa-trash-can"></i></button>
+    </li>`;
+}
+
+function renderAdjustmentRow(id, adjustment) {
+  const isIncrease = adjustment.amount >= 0;
+  const time = new Date(adjustment.createdAt || 0)
+    .toLocaleString('zh-TW', { hour12: false, month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+  return `
+    <li class="bg-white rounded-xl border border-stone-200 px-4 py-3 flex items-center gap-3">
+      <div class="flex-1 min-w-0">
+        <p class="font-medium truncate">${adjustment.note ? escapeHtml(adjustment.note) : (isIncrease ? '增加總額' : '扣除總額')}</p>
+        <p class="text-xs text-stone-400 mt-0.5">
+          <span class="px-1.5 py-0.5 rounded-full ${isIncrease ? 'bg-emerald-100 text-emerald-700' : 'bg-stone-200 text-stone-700'}">${isIncrease ? '增加總額' : '扣除總額'}</span>
+          ${bylineHtml('操作：', adjustment.by)} ${time}
+        </p>
+      </div>
+      <span class="text-right"><span class="block font-bold ${isIncrease ? 'text-emerald-600' : 'text-stone-600'}">${isIncrease ? '+' : '-'}${formatYen(Math.abs(adjustment.amount))}</span><span class="block text-[11px] text-stone-400">${twdText(adjustment.amount)}</span></span>
+      <button data-delete-adjustment="${escapeHtml(id)}" class="text-stone-400 p-3 -mr-2" aria-label="刪除"><i class="fa-solid fa-trash-can"></i></button>
     </li>`;
 }
 
 function renderFund() {
   const entries = expensesWhere(isFundExpense);
   const spent = sumAmounts(entries);
-  const remaining = budgetState.fundTotal - spent;
-  el('fund-total-view').textContent = formatYen(budgetState.fundTotal);
+  const adjustmentEntries = toEntries(budgetState.adjustments).sort((a, b) => (b[1].createdAt || 0) - (a[1].createdAt || 0));
+  const total = adjustmentEntries.reduce((sum, [, adjustment]) => sum + (Number(adjustment.amount) || 0), 0);
+  const remaining = total - spent;
+  el('fund-total-view').textContent = formatYen(total);
+  el('fund-total-twd').textContent = twdText(total);
   el('fund-spent').textContent = formatYen(spent);
-  el('fund-remaining').textContent = formatYen(remaining);
+  el('fund-spent-twd').textContent = twdText(spent);
+  el('fund-remaining').textContent = (remaining < 0 ? '-' : '') + formatYen(Math.abs(remaining));
+  el('fund-remaining-twd').textContent = twdText(remaining);
   el('fund-remaining').className = `font-bold ${remaining < 0 ? 'text-red-600' : 'text-emerald-600'}`;
-  el('fund-expense-count').textContent = entries.length;
-  el('fund-expense-list').innerHTML = entries.length === 0
-    ? '<li class="text-center text-sm text-stone-400 py-6">公基金還沒有支出紀錄。</li>'
-    : entries.map(([id, expense]) => renderExpenseRow(id, expense, bylineHtml('記錄：', expense.by))).join('');
+  const expenseBadge = '<span class="px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700">支出</span>';
+  const records = [
+    ...adjustmentEntries.map(([id, adjustment]) => ({ createdAt: adjustment.createdAt || 0, html: renderAdjustmentRow(id, adjustment) })),
+    ...entries.map(([id, expense]) => ({
+      createdAt: expense.createdAt || 0,
+      html: renderExpenseRow(id, expense, `${expenseBadge} ${bylineHtml('記錄：', expense.by)}`)
+    }))
+  ].sort((a, b) => b.createdAt - a.createdAt);
+  el('fund-record-count').textContent = records.length;
+  el('fund-record-list').innerHTML = records.length === 0
+    ? '<li class="text-center text-sm text-stone-400 py-6">還沒有紀錄，先用上方「增加總額」放入公基金。</li>'
+    : records.map(record => record.html).join('');
 }
 
 function renderMemberCard(memberId, name, entries) {
@@ -717,7 +793,7 @@ function renderMemberCard(memberId, name, entries) {
       <button data-toggle="${escapeHtml(memberId)}" class="w-full text-left px-4 py-3">
         <div class="flex items-center gap-2">
           <span class="font-bold flex-1">👤 ${escapeHtml(name)}${isMe ? ' <span class="text-[11px] font-medium text-[#e0603f] bg-orange-50 rounded-full px-2 py-0.5 ml-1">我</span>' : ''}</span>
-          <span class="font-bold text-[#e0603f]">${formatYen(total)}</span>
+          <span class="text-right"><span class="block font-bold text-[#e0603f]">${formatYen(total)}</span><span class="block text-[11px] text-stone-400">${twdText(total)}</span></span>
           <i class="fa-solid ${isCollapsed ? 'fa-chevron-down' : 'fa-chevron-up'} text-stone-300 text-xs"></i>
         </div>
         <p class="text-xs text-stone-400 mt-1.5">${entries.length} 筆</p>
@@ -751,10 +827,78 @@ function readExpenseForm(nameId, amountId) {
   return name && amount > 0 ? { name, amount } : null;
 }
 
+let updateTwdPreviews = () => {};
+
+function renderRateViews() {
+  const rateInput = el('rate-input');
+  if (document.activeElement !== rateInput) rateInput.value = budgetState.rate ?? DEFAULT_EXCHANGE_RATE;
+  el('family-rate-note').textContent = `匯率 1 日圓 ≈ NT$${effectiveRate()}（可到「公基金」頁修改）`;
+  updateTwdPreviews();
+  renderFund();
+  renderFamily();
+}
+
+function bindRate(store) {
+  const rateInput = el('rate-input');
+  const status = el('rate-status');
+  rateInput.addEventListener('change', () => {
+    const rate = Number(rateInput.value);
+    if (rate > 0) store.set(PATH_EXCHANGE_RATE, rate);
+  });
+
+  el('rate-fetch').addEventListener('click', async () => {
+    status.textContent = '取得中…';
+    try {
+      const response = await fetch(EXCHANGE_RATE_API_URL);
+      const data = await response.json();
+      const rate = data?.rates?.TWD;
+      if (!(rate > 0)) throw new Error('missing TWD rate');
+      const rounded = Math.round(rate * 10000) / 10000;
+      store.set(PATH_EXCHANGE_RATE, rounded);
+      status.textContent = `已更新為 ${rounded}（${new Date().toLocaleDateString('zh-TW')} 的參考匯率，實際換匯請以銀行為準）`;
+    } catch (error) {
+      status.textContent = '取得失敗，請手動輸入匯率。';
+    }
+  });
+
+  store.subscribe(PATH_EXCHANGE_RATE, rate => {
+    budgetState.rate = Number(rate) || null;
+    renderRateViews();
+  });
+}
+
 function bindFund(store) {
-  const fundInput = el('fund-total');
-  fundInput.addEventListener('change', () => {
-    store.set(PATH_FUND_TOTAL, Math.max(0, Math.round(Number(fundInput.value) || 0)));
+  bindRate(store);
+  const previewFundExpense = bindTwdPreview('fund-expense-amount', 'fund-expense-twd');
+  const previewAdjust = bindTwdPreview('fund-adjust-amount', 'fund-adjust-twd');
+  const previewFamily = bindTwdPreview('family-amount', 'family-twd');
+  updateTwdPreviews = () => { previewFundExpense(); previewAdjust(); previewFamily(); };
+
+  el('fund-adjust-form').addEventListener('click', event => {
+    const button = event.target.closest('[data-adjust]');
+    if (!button) return;
+    const form = el('fund-adjust-form');
+    if (!form.reportValidity()) return;
+    const amount = Math.round(Number(el('fund-adjust-amount').value));
+    if (!(amount > 0)) return;
+    store.set(`${PATH_FUND_ADJUSTMENTS}/${makeId()}`, {
+      amount: amount * Number(button.dataset.adjust),
+      note: el('fund-adjust-note').value.trim(),
+      by: identity.memberId,
+      createdAt: Date.now()
+    });
+    el('fund-adjust-amount').value = '';
+    el('fund-adjust-note').value = '';
+    updateTwdPreviews();
+  });
+
+  el('fund-record-list').addEventListener('click', event => {
+    const button = event.target.closest('[data-delete-adjustment]');
+    if (!button) return;
+    const adjustmentId = button.dataset.deleteAdjustment;
+    askConfirm('確定刪除這筆增減紀錄？公基金總額會跟著重新計算。').then(ok => {
+      if (ok) store.set(`${PATH_FUND_ADJUSTMENTS}/${adjustmentId}`, null);
+    });
   });
 
   el('fund-expense-form').addEventListener('submit', event => {
@@ -764,12 +908,12 @@ function bindFund(store) {
     store.set(`${PATH_EXPENSES}/${makeId()}`, { ...fields, source: FUND_SOURCE, by: identity.memberId, createdAt: Date.now() });
     el('fund-expense-name').value = '';
     el('fund-expense-amount').value = '';
+    updateTwdPreviews();
   });
-  bindExpenseDelete('fund-expense-list', store);
+  bindExpenseDelete('fund-record-list', store);
 
-  store.subscribe(PATH_FUND_TOTAL, total => {
-    budgetState.fundTotal = Number(total) || 0;
-    if (document.activeElement !== fundInput) fundInput.value = total ?? '';
+  store.subscribe(PATH_FUND_ADJUSTMENTS, adjustments => {
+    budgetState.adjustments = adjustments || {};
     renderFund();
   });
 }
@@ -795,6 +939,7 @@ function bindFamily(store) {
     });
     el('family-name').value = '';
     el('family-amount').value = '';
+    updateTwdPreviews();
   });
   bindExpenseDelete('member-breakdown', store);
 
