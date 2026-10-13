@@ -46,7 +46,10 @@ const TRIP_ROOM_ID = "osaka-family-2026";
       <h1 class="text-2xl font-bold mt-0.5">大阪 9天8夜 🏯</h1>
       <p class="text-xs opacity-90 mt-1">行程、花費與公基金，全家一起即時編輯</p>
     </div>
-    <span id="sync-status" class="shrink-0 text-[11px] bg-white/25 rounded-full px-2.5 py-1 whitespace-nowrap">連線中…</span>
+    <div class="shrink-0 flex flex-col items-end gap-1.5">
+      <span id="sync-status" class="text-[11px] bg-white/25 rounded-full px-2.5 py-1 whitespace-nowrap">連線中…</span>
+      <button id="identity-badge" type="button" class="text-[11px] bg-white text-[#e0603f] font-bold rounded-full px-2.5 py-1 whitespace-nowrap">選擇身分</button>
+    </div>
   </div>
   <div id="config-banner" class="hidden mt-3 bg-white/95 text-stone-700 text-xs rounded-lg p-2.5 leading-relaxed">
     <i class="fa-solid fa-triangle-exclamation text-amber-500"></i>
@@ -70,7 +73,7 @@ const TRIP_ROOM_ID = "osaka-family-2026";
       <p class="text-xs text-stone-500 mb-2">記下飯店名稱、地址、入住日期與訂房代號；離開輸入框時自動同步。</p>
       <textarea id="lodging" rows="5" class="field" placeholder="例：難波 XX 飯店&#10;大阪市中央區…&#10;11/20 入住 – 11/28 退房&#10;訂房代號：ABC123"></textarea>
       <div class="flex items-center justify-between mt-2">
-        <span id="lodging-status" class="text-xs text-stone-400"></span>
+        <span><span id="lodging-status" class="text-xs text-stone-400"></span> <span id="lodging-by"></span></span>
         <a id="lodging-map" href="#" target="_blank" rel="noopener noreferrer" class="hidden text-sm text-sky-700 font-medium bg-sky-50 rounded-lg px-3 py-1.5"><i class="fa-solid fa-map-location-dot mr-1"></i>Google Maps</a>
       </div>
     </div>
@@ -79,10 +82,9 @@ const TRIP_ROOM_ID = "osaka-family-2026";
   </section>
 
   <section id="view-budget" class="hidden">
-    <h2 class="text-xl font-bold mb-3"><i class="fa-solid fa-wallet text-[#e0603f] mr-2"></i>公基金與記帳</h2>
+    <h2 class="text-xl font-bold mb-3"><i class="fa-solid fa-piggy-bank text-[#e0603f] mr-2"></i>公基金</h2>
 
     <div class="bg-white rounded-2xl border border-stone-200 shadow-sm p-4 mb-4">
-      <h3 class="font-bold mb-2"><i class="fa-solid fa-piggy-bank text-[#e0603f] mr-2"></i>公基金</h3>
       <label class="text-xs text-stone-500">公基金總額（日圓）</label>
       <input id="fund-total" type="number" inputmode="numeric" min="0" step="1" placeholder="例如 200000" class="field mt-1">
       <div class="grid grid-cols-3 gap-2 mt-3 text-center">
@@ -92,45 +94,61 @@ const TRIP_ROOM_ID = "osaka-family-2026";
       </div>
     </div>
 
-    <div class="bg-white rounded-2xl border border-stone-200 shadow-sm p-4 mb-4">
-      <h3 class="font-bold mb-2"><i class="fa-solid fa-people-roof text-[#e0603f] mr-2"></i>家人成員（自費帳戶）</h3>
-      <form id="member-form" class="flex gap-2">
-        <input id="member-name" type="text" required maxlength="10" placeholder="例如 爸爸、小明" class="field">
-        <button type="submit" class="shrink-0 bg-[#e0603f] text-white font-bold px-4 rounded-lg">新增</button>
-      </form>
-      <ul id="member-summary" class="mt-3 space-y-2"></ul>
-    </div>
-
-    <form id="expense-form" class="bg-white rounded-2xl border border-stone-200 shadow-sm p-4 space-y-3 mb-4">
-      <h3 class="font-bold"><i class="fa-solid fa-receipt text-[#e0603f] mr-2"></i>新增花費</h3>
-      <input id="expense-name" type="text" required maxlength="40" placeholder="項目（例：章魚燒）" class="field">
-      <input id="expense-amount" type="number" inputmode="numeric" min="1" step="1" required placeholder="金額（日圓）" class="field">
-      <div>
-        <label class="text-xs text-stone-500">這筆錢由誰出？</label>
-        <select id="expense-source" class="field mt-1"></select>
-      </div>
-      <button type="submit" class="w-full bg-[#e0603f] text-white font-bold py-3 rounded-lg active:scale-[.99]"><i class="fa-solid fa-plus mr-1"></i>新增花費</button>
+    <form id="fund-expense-form" class="bg-white rounded-2xl border border-stone-200 shadow-sm p-4 space-y-3 mb-4">
+      <h3 class="font-bold"><i class="fa-solid fa-receipt text-[#e0603f] mr-2"></i>新增公基金支出</h3>
+      <input id="fund-expense-name" type="text" required maxlength="40" placeholder="項目（例：全家晚餐、JR 車票）" class="field">
+      <input id="fund-expense-amount" type="number" inputmode="numeric" min="1" step="1" required placeholder="金額（日圓）" class="field">
+      <button type="submit" class="w-full bg-[#e0603f] text-white font-bold py-3 rounded-lg active:scale-[.99]"><i class="fa-solid fa-plus mr-1"></i>新增支出</button>
     </form>
 
     <div class="flex items-baseline justify-between mb-2">
-      <h3 class="font-bold">花費紀錄</h3>
-      <p class="text-xs text-stone-500">全部合計 <b id="budget-total" class="text-[#e0603f]">¥0</b>（<span id="budget-count">0</span> 筆）</p>
+      <h3 class="font-bold">公基金支出紀錄</h3>
+      <p class="text-xs text-stone-500">共 <span id="fund-expense-count">0</span> 筆</p>
     </div>
-    <ul id="expense-list" class="space-y-2"></ul>
+    <ul id="fund-expense-list" class="space-y-2"></ul>
+  </section>
+
+  <section id="view-family" class="hidden">
+    <h2 class="text-xl font-bold mb-3"><i class="fa-solid fa-people-roof text-[#e0603f] mr-2"></i>家人記帳</h2>
+
+    <form id="family-form" class="bg-white rounded-2xl border border-stone-200 shadow-sm p-4 space-y-3 mb-4">
+      <h3 class="font-bold"><i class="fa-solid fa-receipt text-[#e0603f] mr-2"></i>新增自費花費<span id="family-who" class="text-[#e0603f]"></span></h3>
+      <div><label class="text-xs text-stone-500">類別</label><select id="family-category" class="field mt-1"></select></div>
+      <input id="family-name" type="text" required maxlength="40" placeholder="項目（例：章魚燒、藥妝）" class="field">
+      <input id="family-amount" type="number" inputmode="numeric" min="1" step="1" required placeholder="金額（日圓）" class="field">
+      <button type="submit" class="w-full bg-[#e0603f] text-white font-bold py-3 rounded-lg active:scale-[.99]"><i class="fa-solid fa-plus mr-1"></i>新增花費</button>
+    </form>
+
+    <h3 class="font-bold mb-2">我的花費紀錄（點名字可收合）</h3>
+    <ul id="member-breakdown" class="space-y-3 mb-4"></ul>
   </section>
 
   <section id="view-notes" class="hidden">
     <h2 class="text-xl font-bold mb-1"><i class="fa-solid fa-note-sticky text-[#e0603f] mr-2"></i>共享備忘錄</h2>
-    <p class="text-sm text-stone-500 mb-3">離開輸入框或按「儲存」就會同步到雲端。</p>
-    <textarea id="notes" rows="14" class="w-full border border-stone-300 rounded-2xl p-3 text-base bg-white" placeholder="訂位資訊、飯店代號、想買的伴手禮…"></textarea>
-    <div class="flex items-center justify-between mt-2">
-      <span id="notes-status" class="text-xs text-stone-400"></span>
-      <button id="notes-save" class="bg-[#e0603f] text-white font-bold px-5 py-2.5 rounded-lg"><i class="fa-solid fa-cloud-arrow-up mr-1"></i>儲存</button>
-    </div>
+    <p class="text-sm text-stone-500 mb-3">新增待辦或提醒事項，確認後可勾選。全家即時同步。已確認 <span id="memo-progress">0 / 0</span></p>
+    <form id="memo-form" class="flex gap-2 mb-4">
+      <input id="memo-text" type="text" required maxlength="100" placeholder="例：確認明天的電車時間、買伴手禮…" class="field">
+      <button type="submit" class="shrink-0 bg-[#e0603f] text-white font-bold px-4 rounded-lg">新增</button>
+    </form>
+    <ul id="memo-list" class="space-y-2"></ul>
   </section>
 </main>
 
-<div id="confirm-dialog" class="hidden fixed inset-0 z-[60] bg-black/40 flex items-center justify-center p-6">
+<div id="identity-dialog" class="hidden fixed inset-0 z-[70] bg-[#fbf8f3] overflow-y-auto">
+  <div class="max-w-md mx-auto p-6 pt-16">
+    <p class="text-xs font-bold tracking-widest text-[#e0603f]">WHO ARE YOU</p>
+    <h2 class="text-2xl font-bold mt-1">你是誰？</h2>
+    <p class="text-sm text-stone-500 mt-2">選擇你的名字。之後你新增、編輯、記帳的內容都會自動記在你名下，不用再另外填。</p>
+    <ul id="identity-list" class="space-y-2 mt-5"></ul>
+    <form id="identity-form" class="flex gap-2 mt-5">
+      <input id="identity-name" type="text" required maxlength="10" placeholder="找不到名字？輸入新名字" class="field">
+      <button type="submit" class="shrink-0 bg-[#e0603f] text-white font-bold px-4 rounded-lg">加入</button>
+    </form>
+    <button id="identity-close" type="button" class="hidden w-full mt-4 border border-stone-300 py-2.5 rounded-lg font-medium">取消</button>
+  </div>
+</div>
+
+<div id="confirm-dialog"class="hidden fixed inset-0 z-[60] bg-black/40 flex items-center justify-center p-6">
   <div class="bg-white rounded-2xl p-5 w-full max-w-sm">
     <p id="confirm-message" class="text-base leading-relaxed"></p>
     <div class="flex gap-2 mt-5">
@@ -167,10 +185,11 @@ const TRIP_ROOM_ID = "osaka-family-2026";
 </div>
 
 <nav class="fixed bottom-0 inset-x-0 z-40 bg-white border-t border-stone-200 safe-bottom">
-  <div class="grid grid-cols-4 max-w-2xl mx-auto">
+  <div class="grid grid-cols-5 max-w-2xl mx-auto">
     <button class="nav-btn active py-2.5 text-xs text-stone-500" data-view="itinerary"><i class="fa-solid fa-map-location-dot block text-lg mb-0.5"></i>行程</button>
-    <button class="nav-btn py-2.5 text-xs text-stone-500" data-view="checklist"><i class="fa-solid fa-list-check block text-lg mb-0.5"></i>清單</button>
+    <button class="nav-btn py-2.5 text-xs text-stone-500" data-view="family"><i class="fa-solid fa-people-roof block text-lg mb-0.5"></i>家人</button>
     <button class="nav-btn py-2.5 text-xs text-stone-500" data-view="budget"><i class="fa-solid fa-wallet block text-lg mb-0.5"></i>公基金</button>
+    <button class="nav-btn py-2.5 text-xs text-stone-500" data-view="checklist"><i class="fa-solid fa-list-check block text-lg mb-0.5"></i>清單</button>
     <button class="nav-btn py-2.5 text-xs text-stone-500" data-view="notes"><i class="fa-solid fa-note-sticky block text-lg mb-0.5"></i>備忘</button>
   </div>
 </nav>
@@ -183,7 +202,7 @@ const PATH_DAY_THEMES = 'dayThemes';
 const PATH_MEMBERS = 'members';
 const PATH_EXPENSES = 'expenses';
 const PATH_FUND_TOTAL = 'fundTotal';
-const PATH_NOTES = 'notes';
+const PATH_MEMOS = 'memos';
 const LOCAL_STORAGE_KEY = 'osakaTrip.localStore';
 const FIREBASE_PLACEHOLDER_PREFIX = 'YOUR_';
 const DAY_COUNT = 9;
@@ -192,6 +211,7 @@ const FUND_SOURCE = 'fund';
 const TRANSPORT_ICONS = { train: '🚇', bus: '🚌', walk: '🚶', taxi: '🚕', boat: '🚤', car: '🚗' };
 
 const PATH_LODGING = 'lodging';
+const PATH_LODGING_BY = 'lodgingBy';
 
 /* suggestions 的 id 固定，兩支手機同時按「加入建議項目」也只會寫入同一份 */
 const CHECKLIST_GROUPS = [
@@ -277,6 +297,60 @@ function makeId() { return Date.now().toString(36) + Math.random().toString(36).
 function toEntries(map) { return Object.entries(map || {}); }
 function el(id) { return document.getElementById(id); }
 
+/* ---------- 使用者身分（選名字即可，沒有密碼驗證） ---------- */
+const STORAGE_KEY_IDENTITY = 'osakaTrip.identity';
+const identity = { memberId: null, rosterLoaded: false, forcePick: false };
+try { identity.memberId = localStorage.getItem(STORAGE_KEY_IDENTITY); } catch (error) { /* 無法讀取時每次開啟都重新選擇 */ }
+
+function memberName(memberId) { return budgetState.members[memberId]?.name || null; }
+
+function bylineHtml(prefix, memberId) {
+  const name = memberName(memberId);
+  return name ? `<span class="text-xs text-stone-400">${prefix} ${escapeHtml(name)}</span>` : '';
+}
+
+function chooseIdentity(memberId) {
+  identity.memberId = memberId;
+  identity.forcePick = false;
+  try { localStorage.setItem(STORAGE_KEY_IDENTITY, memberId); } catch (error) { /* 忽略 */ }
+  refreshIdentity();
+  renderAttributedViews();
+}
+
+function refreshIdentity() {
+  if (!identity.rosterLoaded) return;
+  if (identity.memberId && !budgetState.members[identity.memberId]) identity.memberId = null;
+  const needsPick = !identity.memberId || identity.forcePick;
+  el('identity-dialog').classList.toggle('hidden', !needsPick);
+  el('identity-close').classList.toggle('hidden', !identity.memberId);
+  el('identity-badge').textContent = identity.memberId ? `👤 ${memberName(identity.memberId)}・切換` : '選擇身分';
+  const members = toEntries(budgetState.members);
+  el('identity-list').innerHTML = members.length === 0
+    ? '<li class="text-sm text-stone-400">還沒有人，請在下方輸入你的名字。</li>'
+    : members.map(([id, member]) => `
+      <li><button data-pick="${escapeHtml(id)}" class="w-full text-left bg-white border border-stone-200 rounded-xl px-4 py-3.5 text-lg font-medium active:bg-orange-50">👤 ${escapeHtml(member.name)}</button></li>`).join('');
+  el('family-who').textContent = identity.memberId ? `（${memberName(identity.memberId)}）` : '';
+}
+
+function bindIdentity(store) {
+  el('identity-list').addEventListener('click', event => {
+    const button = event.target.closest('[data-pick]');
+    if (button) chooseIdentity(button.dataset.pick);
+  });
+  el('identity-form').addEventListener('submit', event => {
+    event.preventDefault();
+    const name = el('identity-name').value.trim();
+    if (!name) return;
+    const memberId = makeId();
+    budgetState.members[memberId] = { name };
+    store.set(`${PATH_MEMBERS}/${memberId}`, { name });
+    el('identity-name').value = '';
+    chooseIdentity(memberId);
+  });
+  el('identity-badge').addEventListener('click', () => { identity.forcePick = true; refreshIdentity(); });
+  el('identity-close').addEventListener('click', () => { identity.forcePick = false; refreshIdentity(); });
+}
+
 /* 手機的內建瀏覽器（LINE、FB 等）常會擋掉原生 confirm()，改用頁面內的確認視窗 */
 function askConfirm(message) {
   return new Promise(resolve => {
@@ -321,6 +395,7 @@ function renderItem(dayIndex, id, item, isLast) {
         <a href="${mapUrl(item.mapQuery || item.name)}" target="_blank" rel="noopener noreferrer"
            class="mt-3 inline-flex items-center gap-1.5 text-sm text-sky-700 font-medium bg-sky-50 rounded-lg px-3 py-1.5">
           <i class="fa-solid fa-map-location-dot"></i>Google Maps</a>
+        <p class="mt-2">${bylineHtml('最後編輯：', item.updatedBy)}</p>
       </div>
     </div>`;
 }
@@ -419,15 +494,21 @@ function bindItinerary(store) {
       route: el('item-route').value.trim(),
       cost: Math.max(0, Math.round(Number(el('item-cost').value) || 0)),
       note: el('item-note').value.trim(),
-      createdAt: existing?.createdAt || Date.now()
+      createdAt: existing?.createdAt || Date.now(),
+      createdBy: existing?.createdBy || identity.memberId,
+      updatedBy: identity.memberId
     });
     closeItemDialog();
   });
 
   store.subscribe(PATH_ITINERARY, data => {
     itineraryState.data = data || {};
-    for (let i = 0; i < DAY_COUNT; i++) renderDayItems(i);
+    renderAllDayItems();
   });
+}
+
+function renderAllDayItems() {
+  for (let i = 0; i < DAY_COUNT; i++) renderDayItems(i);
 }
 
 /* ---------- 畫面切換 ---------- */
@@ -439,13 +520,19 @@ function showView(viewName) {
 }
 
 /* ---------- 共享點檢表 ---------- */
+const checklistState = {};
+
 function renderChecklistGroup(group, itemMap) {
+  checklistState[group.id] = itemMap;
   const entries = toEntries(itemMap).sort((a, b) => (a[1].createdAt || 0) - (b[1].createdAt || 0));
   el(`cl-list-${group.id}`).innerHTML = entries.map(([id, item]) => `
     <li class="flex items-center gap-3 py-1.5">
       <label class="flex flex-1 items-center gap-3 cursor-pointer min-w-0">
         <input type="checkbox" data-group="${group.id}" data-id="${escapeHtml(id)}" class="w-5 h-5 accent-[#e0603f] shrink-0" ${item.done ? 'checked' : ''}>
-        <span class="text-base break-words min-w-0 ${item.done ? 'check-done' : ''}">${escapeHtml(item.label)}</span>
+        <span class="min-w-0">
+          <span class="block text-base break-words ${item.done ? 'check-done' : ''}">${escapeHtml(item.label)}</span>
+          ${item.done ? bylineHtml('✓ 完成：', item.doneBy) : bylineHtml('新增：', item.by)}
+        </span>
       </label>
       <button data-remove="${group.id}|${escapeHtml(id)}" class="text-stone-300 p-2" aria-label="刪除項目"><i class="fa-solid fa-xmark"></i></button>
     </li>`).join('');
@@ -468,6 +555,7 @@ function bindLodging(store) {
   textarea.addEventListener('blur', () => {
     if (textarea.value === lastSyncedText) return;
     lastSyncedText = textarea.value;
+    store.set(PATH_LODGING_BY, identity.memberId);
     store.set(PATH_LODGING, textarea.value || null).then(() => { status.textContent = '已同步到雲端 ✓'; });
   });
   store.subscribe(PATH_LODGING, remoteText => {
@@ -475,7 +563,14 @@ function bindLodging(store) {
     if (document.activeElement !== textarea) textarea.value = lastSyncedText;
     updateMapLink();
   });
+  store.subscribe(PATH_LODGING_BY, editorId => {
+    lodgingEditorId = editorId;
+    renderLodgingByline();
+  });
 }
+
+let lodgingEditorId = null;
+function renderLodgingByline() { el('lodging-by').innerHTML = bylineHtml('最後編輯：', lodgingEditorId); }
 
 function bindChecklist(store) {
   bindLodging(store);
@@ -501,7 +596,9 @@ function bindChecklist(store) {
   body.addEventListener('change', event => {
     const box = event.target.closest('input[type="checkbox"]');
     if (!box) return;
-    store.set(`${PATH_CHECKLIST}/${box.dataset.group}/${box.dataset.id}/done`, box.checked);
+    const itemPath = `${PATH_CHECKLIST}/${box.dataset.group}/${box.dataset.id}`;
+    store.set(`${itemPath}/done`, box.checked);
+    store.set(`${itemPath}/doneBy`, box.checked ? identity.memberId : null);
   });
   body.addEventListener('click', event => {
     const removeButton = event.target.closest('[data-remove]');
@@ -514,7 +611,7 @@ function bindChecklist(store) {
       const group = CHECKLIST_GROUPS.find(candidate => candidate.id === suggestButton.dataset.suggest);
       const now = Date.now();
       group.suggestions.forEach((label, index) => {
-        store.set(`${PATH_CHECKLIST}/${group.id}/s${index}`, { label, done: false, createdAt: now + index });
+        store.set(`${PATH_CHECKLIST}/${group.id}/s${index}`, { label, done: false, by: identity.memberId, createdAt: now + index });
       });
     }
   });
@@ -524,7 +621,7 @@ function bindChecklist(store) {
     const input = form.querySelector('input');
     const label = input.value.trim();
     if (!label) return;
-    store.set(`${PATH_CHECKLIST}/${form.dataset.addForm}/${makeId()}`, { label, done: false, createdAt: Date.now() });
+    store.set(`${PATH_CHECKLIST}/${form.dataset.addForm}/${makeId()}`, { label, done: false, by: identity.memberId, createdAt: Date.now() });
     input.value = '';
   });
 
@@ -537,111 +634,82 @@ function bindChecklist(store) {
   });
 }
 
-/* ---------- 公基金、家人與記帳 ---------- */
-const budgetState = { members: {}, expenses: {}, fundTotal: 0 };
+/* ---------- 公基金與家人記帳 ---------- */
+const EXPENSE_CATEGORIES = {
+  food: '🍜 餐飲', transport: '🚇 交通', shopping: '🛍️ 購物', ticket: '🎟️ 門票娛樂', other: '📝 其他'
+};
+const budgetState = { members: {}, expenses: {}, fundTotal: 0, collapsed: {} };
 
-function sourceLabel(source) {
-  if (!source || source === FUND_SOURCE) return '公基金';
-  return budgetState.members[source]?.name || '已移除成員';
+function isFundExpense(expense) { return !expense.source || expense.source === FUND_SOURCE; }
+
+function expensesWhere(predicate) {
+  return toEntries(budgetState.expenses)
+    .filter(([, expense]) => predicate(expense))
+    .sort((a, b) => (b[1].createdAt || 0) - (a[1].createdAt || 0));
 }
 
-function renderSourceOptions() {
-  const select = el('expense-source');
-  const previous = select.value;
-  select.innerHTML = `<option value="${FUND_SOURCE}">💰 從公基金扣除</option>` +
-    toEntries(budgetState.members).map(([id, member]) => `<option value="${escapeHtml(id)}">👤 ${escapeHtml(member.name)} 自費</option>`).join('');
-  if ([...select.options].some(option => option.value === previous)) select.value = previous;
+function sumAmounts(entries) { return entries.reduce((sum, [, expense]) => sum + (Number(expense.amount) || 0), 0); }
+
+function renderExpenseRow(id, expense, badgeHtml) {
+  const time = new Date(expense.createdAt || 0)
+    .toLocaleString('zh-TW', { hour12: false, month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+  return `
+    <li class="bg-white rounded-xl border border-stone-200 px-4 py-3 flex items-center gap-3">
+      <div class="flex-1 min-w-0">
+        <p class="font-medium truncate">${escapeHtml(expense.name)}</p>
+        <p class="text-xs text-stone-400 mt-0.5">${badgeHtml} ${time}</p>
+      </div>
+      <span class="font-bold text-[#e0603f]">${formatYen(expense.amount)}</span>
+      <button data-delete-expense="${escapeHtml(id)}" class="text-stone-400 p-3 -mr-2" aria-label="刪除"><i class="fa-solid fa-trash-can"></i></button>
+    </li>`;
 }
 
-function renderBudget() {
-  const expenses = toEntries(budgetState.expenses).sort((a, b) => (b[1].createdAt || 0) - (a[1].createdAt || 0));
-  const spentBySource = {};
-  let grandTotal = 0;
-  expenses.forEach(([, expense]) => {
-    const source = expense.source || FUND_SOURCE;
-    const amount = Number(expense.amount) || 0;
-    spentBySource[source] = (spentBySource[source] || 0) + amount;
-    grandTotal += amount;
-  });
-
-  const fundSpent = spentBySource[FUND_SOURCE] || 0;
+function renderFund() {
+  const entries = expensesWhere(isFundExpense);
+  const spent = sumAmounts(entries);
+  const remaining = budgetState.fundTotal - spent;
   el('fund-total-view').textContent = formatYen(budgetState.fundTotal);
-  el('fund-spent').textContent = formatYen(fundSpent);
-  const remaining = budgetState.fundTotal - fundSpent;
+  el('fund-spent').textContent = formatYen(spent);
   el('fund-remaining').textContent = formatYen(remaining);
   el('fund-remaining').className = `font-bold ${remaining < 0 ? 'text-red-600' : 'text-emerald-600'}`;
-
-  const memberEntries = toEntries(budgetState.members);
-  const removedTotal = Object.entries(spentBySource)
-    .filter(([source]) => source !== FUND_SOURCE && !budgetState.members[source])
-    .reduce((sum, [, amount]) => sum + amount, 0);
-  el('member-summary').innerHTML = (memberEntries.length === 0
-    ? '<li class="text-sm text-stone-400">先新增家人，才能記錄各自的自費花費。</li>'
-    : memberEntries.map(([id, member]) => `
-      <li class="flex items-center gap-2 bg-stone-50 rounded-xl px-3 py-2">
-        <span class="flex-1 font-medium">👤 ${escapeHtml(member.name)}</span>
-        <span class="text-sm text-stone-500">自費</span>
-        <span class="font-bold text-[#e0603f]">${formatYen(spentBySource[id] || 0)}</span>
-        <button data-remove-member="${escapeHtml(id)}" class="text-stone-400 p-1.5" aria-label="移除成員"><i class="fa-solid fa-xmark"></i></button>
-      </li>`).join('')) +
-    (removedTotal > 0 ? `<li class="flex justify-between text-sm text-stone-500 px-3"><span>已移除成員</span><span>${formatYen(removedTotal)}</span></li>` : '');
-
-  el('budget-total').textContent = formatYen(grandTotal);
-  el('budget-count').textContent = expenses.length;
-  el('expense-list').innerHTML = expenses.length === 0
-    ? '<li class="text-center text-sm text-stone-400 py-6">還沒有記帳，新增第一筆吧！</li>'
-    : expenses.map(([id, expense]) => {
-        const isFund = !expense.source || expense.source === FUND_SOURCE;
-        const badgeColor = isFund ? 'bg-amber-100 text-amber-700' : 'bg-sky-100 text-sky-700';
-        return `
-      <li class="bg-white rounded-xl border border-stone-200 px-4 py-3 flex items-center gap-3">
-        <div class="flex-1 min-w-0">
-          <p class="font-medium truncate">${escapeHtml(expense.name)}</p>
-          <p class="text-xs text-stone-400 mt-0.5">
-            <span class="px-1.5 py-0.5 rounded-full ${badgeColor}">${escapeHtml(sourceLabel(expense.source))}</span>
-            ${new Date(expense.createdAt || 0).toLocaleString('zh-TW', { hour12: false, month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-          </p>
-        </div>
-        <span class="font-bold text-[#e0603f]">${formatYen(expense.amount)}</span>
-        <button data-delete-expense="${escapeHtml(id)}" class="text-stone-400 p-2" aria-label="刪除"><i class="fa-solid fa-trash-can"></i></button>
-      </li>`;
-      }).join('');
+  el('fund-expense-count').textContent = entries.length;
+  el('fund-expense-list').innerHTML = entries.length === 0
+    ? '<li class="text-center text-sm text-stone-400 py-6">公基金還沒有支出紀錄。</li>'
+    : entries.map(([id, expense]) => renderExpenseRow(id, expense, bylineHtml('記錄：', expense.by))).join('');
 }
 
-function bindBudget(store) {
-  const fundInput = el('fund-total');
-  fundInput.addEventListener('change', () => {
-    store.set(PATH_FUND_TOTAL, Math.max(0, Math.round(Number(fundInput.value) || 0)));
-  });
+function renderMemberCard(memberId, name, entries) {
+  const total = sumAmounts(entries);
+  const isCollapsed = budgetState.collapsed[memberId] === true;
+  const isMe = memberId === identity.memberId;
+  const rows = entries.length === 0
+    ? '<li class="text-center text-sm text-stone-400 py-3">還沒有紀錄</li>'
+    : entries.map(([id, expense]) => renderExpenseRow(id, expense,
+        `<span>${EXPENSE_CATEGORIES[expense.category] || EXPENSE_CATEGORIES.other}</span>`)).join('');
+  return `
+    <li class="bg-white rounded-2xl border ${isMe ? 'border-[#e0603f]' : 'border-stone-200'} shadow-sm overflow-hidden">
+      <button data-toggle="${escapeHtml(memberId)}" class="w-full text-left px-4 py-3">
+        <div class="flex items-center gap-2">
+          <span class="font-bold flex-1">👤 ${escapeHtml(name)}${isMe ? ' <span class="text-[11px] font-medium text-[#e0603f] bg-orange-50 rounded-full px-2 py-0.5 ml-1">我</span>' : ''}</span>
+          <span class="font-bold text-[#e0603f]">${formatYen(total)}</span>
+          <i class="fa-solid ${isCollapsed ? 'fa-chevron-down' : 'fa-chevron-up'} text-stone-300 text-xs"></i>
+        </div>
+        <p class="text-xs text-stone-400 mt-1.5">${entries.length} 筆</p>
+      </button>
+      <ul class="px-3 pb-3 space-y-2 ${isCollapsed ? 'hidden' : ''}">${rows}</ul>
+    </li>`;
+}
 
-  el('member-form').addEventListener('submit', event => {
-    event.preventDefault();
-    const name = el('member-name').value.trim();
-    if (!name) return;
-    store.set(`${PATH_MEMBERS}/${makeId()}`, { name });
-    el('member-name').value = '';
-  });
+function renderFamily() {
+  const me = budgetState.members[identity.memberId];
+  const myEntries = expensesWhere(expense => !isFundExpense(expense) && expense.source === identity.memberId);
+  el('member-breakdown').innerHTML = !me
+    ? '<li class="text-sm text-stone-400">請先從右上角選擇你的身分。</li>'
+    : renderMemberCard(identity.memberId, me.name, myEntries);
+}
 
-  el('member-summary').addEventListener('click', event => {
-    const button = event.target.closest('[data-remove-member]');
-    if (!button) return;
-    const memberId = button.dataset.removeMember;
-    askConfirm('確定移除這位成員？他過去的自費紀錄會保留，但顯示為「已移除成員」。').then(ok => {
-      if (ok) store.set(`${PATH_MEMBERS}/${memberId}`, null);
-    });
-  });
-
-  el('expense-form').addEventListener('submit', event => {
-    event.preventDefault();
-    const name = el('expense-name').value.trim();
-    const amount = Math.round(Number(el('expense-amount').value));
-    if (!name || !(amount > 0)) return;
-    store.set(`${PATH_EXPENSES}/${makeId()}`, { name, amount, source: el('expense-source').value, createdAt: Date.now() });
-    el('expense-name').value = '';
-    el('expense-amount').value = '';
-  });
-
-  el('expense-list').addEventListener('click', event => {
+function bindExpenseDelete(listId, store) {
+  el(listId).addEventListener('click', event => {
     const button = event.target.closest('[data-delete-expense]');
     if (!button) return;
     const expenseId = button.dataset.deleteExpense;
@@ -649,38 +717,136 @@ function bindBudget(store) {
       if (ok) store.set(`${PATH_EXPENSES}/${expenseId}`, null);
     });
   });
+}
 
-  store.subscribe(PATH_MEMBERS, members => {
-    budgetState.members = members || {};
-    renderSourceOptions();
-    renderBudget();
+function readExpenseForm(nameId, amountId) {
+  const name = el(nameId).value.trim();
+  const amount = Math.round(Number(el(amountId).value));
+  return name && amount > 0 ? { name, amount } : null;
+}
+
+function bindFund(store) {
+  const fundInput = el('fund-total');
+  fundInput.addEventListener('change', () => {
+    store.set(PATH_FUND_TOTAL, Math.max(0, Math.round(Number(fundInput.value) || 0)));
   });
-  store.subscribe(PATH_EXPENSES, expenses => { budgetState.expenses = expenses || {}; renderBudget(); });
+
+  el('fund-expense-form').addEventListener('submit', event => {
+    event.preventDefault();
+    const fields = readExpenseForm('fund-expense-name', 'fund-expense-amount');
+    if (!fields) return;
+    store.set(`${PATH_EXPENSES}/${makeId()}`, { ...fields, source: FUND_SOURCE, by: identity.memberId, createdAt: Date.now() });
+    el('fund-expense-name').value = '';
+    el('fund-expense-amount').value = '';
+  });
+  bindExpenseDelete('fund-expense-list', store);
+
   store.subscribe(PATH_FUND_TOTAL, total => {
     budgetState.fundTotal = Number(total) || 0;
     if (document.activeElement !== fundInput) fundInput.value = total ?? '';
-    renderBudget();
+    renderFund();
   });
 }
 
-/* ---------- 共享備忘錄 ---------- */
-function bindNotes(store) {
-  const textarea = el('notes');
-  const status = el('notes-status');
-  let lastSyncedText = '';
+function bindFamily(store) {
+  el('family-category').innerHTML = Object.entries(EXPENSE_CATEGORIES)
+    .map(([key, label]) => `<option value="${key}">${label}</option>`).join('');
 
-  const saveNotes = () => {
-    if (textarea.value === lastSyncedText) return;
-    lastSyncedText = textarea.value;
-    store.set(PATH_NOTES, textarea.value).then(() => { status.textContent = '已同步到雲端 ✓'; });
-  };
-  textarea.addEventListener('blur', saveNotes);
-  el('notes-save').addEventListener('click', saveNotes);
-
-  store.subscribe(PATH_NOTES, remoteText => {
-    lastSyncedText = remoteText || '';
-    if (document.activeElement !== textarea) textarea.value = lastSyncedText;
+  el('member-breakdown').addEventListener('click', event => {
+    const header = event.target.closest('[data-toggle]');
+    if (!header) return;
+    const key = header.dataset.toggle;
+    budgetState.collapsed[key] = !budgetState.collapsed[key];
+    renderFamily();
   });
+
+  el('family-form').addEventListener('submit', event => {
+    event.preventDefault();
+    const fields = readExpenseForm('family-name', 'family-amount');
+    if (!fields || !identity.memberId) return;
+    store.set(`${PATH_EXPENSES}/${makeId()}`, {
+      ...fields, source: identity.memberId, by: identity.memberId, category: el('family-category').value, createdAt: Date.now()
+    });
+    el('family-name').value = '';
+    el('family-amount').value = '';
+  });
+  bindExpenseDelete('member-breakdown', store);
+
+  store.subscribe(PATH_MEMBERS, members => {
+    budgetState.members = members || {};
+    identity.rosterLoaded = true;
+    refreshIdentity();
+    renderAttributedViews();
+  });
+}
+
+function bindBudget(store) {
+  store.subscribe(PATH_EXPENSES, expenses => {
+    budgetState.expenses = expenses || {};
+    renderFund();
+    renderFamily();
+  });
+  bindFund(store);
+  bindFamily(store);
+}
+
+/* ---------- 共享備忘錄 ---------- */
+const memoState = { data: {} };
+
+function renderAttributedViews() {
+  renderAllDayItems();
+  renderFund();
+  renderFamily();
+  renderMemos(memoState.data);
+  CHECKLIST_GROUPS.forEach(group => { if (checklistState[group.id] !== undefined) renderChecklistGroup(group, checklistState[group.id]); });
+  renderLodgingByline();
+}
+
+function renderMemos(memoMap) {
+  memoState.data = memoMap;
+  const entries = toEntries(memoMap).sort((a, b) => (a[1].createdAt || 0) - (b[1].createdAt || 0));
+  el('memo-progress').textContent = `${entries.filter(([, memo]) => memo.done).length} / ${entries.length}`;
+  el('memo-list').innerHTML = entries.length === 0
+    ? '<li class="text-center text-sm text-stone-400 py-6">還沒有備忘事項，新增第一個吧！</li>'
+    : entries.map(([id, memo]) => `
+      <li class="bg-white rounded-xl border border-stone-200 px-4 py-2 flex items-center gap-3">
+        <label class="flex flex-1 items-center gap-3 py-1.5 cursor-pointer min-w-0">
+          <input type="checkbox" data-memo="${escapeHtml(id)}" class="w-5 h-5 accent-[#e0603f] shrink-0" ${memo.done ? 'checked' : ''}>
+          <span class="min-w-0">
+            <span class="block text-base break-words ${memo.done ? 'check-done' : ''}">${escapeHtml(memo.text)}</span>
+            ${memo.done ? bylineHtml('✓ 確認：', memo.doneBy) : bylineHtml('新增：', memo.by)}
+          </span>
+        </label>
+        <button data-delete-memo="${escapeHtml(id)}" class="text-stone-400 p-3 -mr-2" aria-label="刪除"><i class="fa-solid fa-trash-can"></i></button>
+      </li>`).join('');
+}
+
+function bindNotes(store) {
+  el('memo-form').addEventListener('submit', event => {
+    event.preventDefault();
+    const text = el('memo-text').value.trim();
+    if (!text) return;
+    store.set(`${PATH_MEMOS}/${makeId()}`, { text, done: false, by: identity.memberId, createdAt: Date.now() });
+    el('memo-text').value = '';
+  });
+
+  el('memo-list').addEventListener('change', event => {
+    const box = event.target.closest('[data-memo]');
+    if (!box) return;
+    store.set(`${PATH_MEMOS}/${box.dataset.memo}/done`, box.checked);
+    store.set(`${PATH_MEMOS}/${box.dataset.memo}/doneBy`, box.checked ? identity.memberId : null);
+  });
+
+  el('memo-list').addEventListener('click', event => {
+    const button = event.target.closest('[data-delete-memo]');
+    if (!button) return;
+    const memoId = button.dataset.deleteMemo;
+    askConfirm('確定刪除這個備忘事項？所有人的畫面都會同步移除。').then(ok => {
+      if (ok) store.set(`${PATH_MEMOS}/${memoId}`, null);
+    });
+  });
+
+  store.subscribe(PATH_MEMOS, renderMemos);
 }
 
 /* ---------- 啟動 ---------- */
@@ -700,6 +866,7 @@ function bindSyncStatus(store, isCloud) {
   const { store, isCloud } = createStore();
   document.querySelectorAll('.nav-btn').forEach(btn => btn.addEventListener('click', () => showView(btn.dataset.view)));
   bindSyncStatus(store, isCloud);
+  bindIdentity(store);
   bindItinerary(store);
   bindChecklist(store);
   bindBudget(store);
