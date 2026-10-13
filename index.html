@@ -16,7 +16,9 @@
   .check-done { color: #9ca3af; text-decoration: line-through; }
   .timeline-line { position: absolute; left: 11px; top: 8px; bottom: -22px; width: 2px; background: #e8dfd2; }
   #day-bar::-webkit-scrollbar { display: none; }
-  .field { width: 100%; border: 1px solid #d6d3d1; border-radius: .5rem; padding: .625rem .75rem; font-size: 1rem; background: #fff; }
+  .field { width: 100%; min-width: 0; max-width: 100%; box-sizing: border-box; border: 1px solid #d6d3d1; border-radius: .5rem; padding: .625rem .75rem; font-size: 1rem; background: #fff; }
+  input[type="time"].field { appearance: none; -webkit-appearance: none; min-height: 2.75rem; }
+  .sheet { max-height: 92vh; max-height: 92dvh; overflow-y: auto; overscroll-behavior: contain; padding-bottom: calc(1.25rem + env(safe-area-inset-bottom)); }
 </style>
 </head>
 <body class="pb-24">
@@ -159,7 +161,7 @@ const TRIP_ROOM_ID = "osaka-family-2026";
 </div>
 
 <div id="item-dialog"class="hidden fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center">
-  <form id="item-form" class="bg-white w-full max-w-md rounded-t-3xl sm:rounded-3xl p-5 space-y-3 max-h-[92vh] overflow-y-auto">
+  <form id="item-form" class="sheet bg-white w-full max-w-md rounded-t-3xl sm:rounded-3xl p-5 space-y-3">
     <div class="flex items-center justify-between">
       <h3 id="item-dialog-title" class="text-lg font-bold">新增行程</h3>
       <button type="button" id="item-cancel" class="text-stone-400 p-2" aria-label="關閉"><i class="fa-solid fa-xmark text-lg"></i></button>
