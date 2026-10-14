@@ -55,7 +55,7 @@ const firebaseConfig = {
   appId: "1:135742258680:web:ab3152f16b01bce8e76a0d"
 };
 /* 同一個房間代號的人會看到同一份資料；想與旅伴共用就保持相同 */
-const TRIP_ROOM_ID = "osaka-family-2026";
+const TRIP_ROOM_ID = "osaka-h7x4pdycsskfxpgpyly9p9cn";
 </script>
 
 <header class="bg-gradient-to-br from-[#e0603f] to-[#f2a65a] text-white px-4 pt-5 pb-4">
@@ -85,7 +85,7 @@ const TRIP_ROOM_ID = "osaka-family-2026";
 
   <section id="view-checklist" class="hidden">
     <h2 class="text-xl font-bold mb-1"><i class="fa-solid fa-list-check text-[#e0603f] mr-2"></i>行前準備清單</h2>
-    <p class="text-sm text-stone-500 mb-4">全家共用：任何人勾選或新增項目，所有手機即時同步。已完成 <span id="check-progress">0 / 0</span></p>
+    <p class="text-sm text-stone-500 mb-4">全家共用：任何人勾選或新增項目，所有手機即時同步。</p>
 
     <div class="bg-white rounded-2xl border border-stone-200 shadow-sm p-4 mb-4">
       <div class="flex items-center justify-between gap-2 mb-1">
@@ -184,7 +184,7 @@ const TRIP_ROOM_ID = "osaka-family-2026";
 
   <section id="view-notes" class="hidden">
     <h2 class="text-xl font-bold mb-1"><i class="fa-solid fa-note-sticky text-[#e0603f] mr-2"></i>共享備忘錄</h2>
-    <p class="text-sm text-stone-500 mb-3">新增待辦或提醒事項，確認後可勾選。全家即時同步。已確認 <span id="memo-progress">0 / 0</span></p>
+    <p class="text-sm text-stone-500 mb-3">新增待辦或提醒事項，確認後可勾選。全家即時同步。</p>
     <form id="memo-form" class="flex gap-2 mb-4">
       <input id="memo-text" type="text" required maxlength="100" placeholder="例：確認明天的電車時間、買伴手禮…" class="field">
       <button type="submit" class="shrink-0 bg-[#e0603f] text-white font-bold px-4 rounded-lg">新增</button>
@@ -232,9 +232,25 @@ const TRIP_ROOM_ID = "osaka-family-2026";
 
 <div id="print-report"></div>
 
-<div id="toast"class="hidden fixed left-1/2 -translate-x-1/2 bottom-24 z-[80] max-w-[90vw] bg-stone-800 text-white text-sm rounded-full px-4 py-2 shadow-lg text-center"></div>
+<div id="toast" class="hidden fixed left-1/2 -translate-x-1/2 bottom-24 z-[80] max-w-[90vw] bg-stone-800 text-white text-sm rounded-full px-4 py-2 shadow-lg text-center"></div>
 
-<div id="edit-dialog"class="hidden fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center">
+<div id="move-dialog" class="hidden fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center">
+  <div class="sheet bg-white w-full max-w-md rounded-t-3xl sm:rounded-3xl p-5 space-y-3">
+    <div class="flex items-center justify-between">
+      <h3 class="text-lg font-bold">複製或移到其他天</h3>
+      <button type="button" id="move-cancel" class="text-stone-400 p-2" aria-label="關閉"><i class="fa-solid fa-xmark text-lg"></i></button>
+    </div>
+    <p id="move-name" class="text-sm text-stone-600 break-words"></p>
+    <div><label class="text-xs text-stone-500">目標日期</label><select id="move-target" class="field mt-1"></select></div>
+    <div class="grid grid-cols-2 gap-2">
+      <button type="button" id="move-copy" class="border border-[#e0603f] text-[#e0603f] font-bold py-3 rounded-lg"><i class="fa-regular fa-copy mr-1"></i>複製過去</button>
+      <button type="button" id="move-move" class="bg-[#e0603f] text-white font-bold py-3 rounded-lg"><i class="fa-solid fa-right-long mr-1"></i>移到那天</button>
+    </div>
+    <p class="text-xs text-stone-400">複製：原本那天保留。移動：原本那天會移除。</p>
+  </div>
+</div>
+
+<div id="edit-dialog" class="hidden fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center">
   <form id="edit-form" class="sheet bg-white w-full max-w-md rounded-t-3xl sm:rounded-3xl p-5 space-y-3">
     <div class="flex items-center justify-between">
       <h3 id="edit-title" class="text-lg font-bold">編輯</h3>
@@ -538,6 +554,7 @@ function renderItem(dayIndex, id, item, isLast) {
           <span class="text-sm font-bold text-[#e0603f]"><i class="fa-regular fa-clock mr-1"></i>${escapeHtml(formatTimeRange(item))}</span>
           <span class="shrink-0 -mt-1.5 -mr-2">
             <button data-edit="${dayIndex}|${id}" class="${buttonClass}" aria-label="編輯" ${lockHolder ? 'disabled' : ''}><i class="fa-solid fa-pen"></i></button>
+            <button data-move="${dayIndex}|${id}" class="${buttonClass}" aria-label="複製或移到其他天" ${lockHolder ? 'disabled' : ''}><i class="fa-regular fa-copy"></i></button>
             <button data-delete="${dayIndex}|${id}" class="${buttonClass}" aria-label="刪除" ${lockHolder ? 'disabled' : ''}><i class="fa-solid fa-trash-can"></i></button>
           </span>
         </div>
@@ -643,6 +660,36 @@ async function startEditing(store, dayIndex, itemId) {
   openItemDialog(dayIndex, itemId);
 }
 
+const moveState = { day: null, id: null };
+
+function openMoveDialog(dayIndex, itemId) {
+  const item = itineraryState.data[`day${dayIndex}`]?.[itemId];
+  if (!item) return;
+  if (lockedByOther(dayIndex, itemId)) { showToast('有人正在編輯這個行程，暫時不能搬移'); return; }
+  moveState.day = dayIndex;
+  moveState.id = itemId;
+  el('move-name').textContent = `${formatTimeRange(item)}　${item.name}`;
+  el('move-target').value = String(Math.min(dayIndex + 1, DAY_COUNT - 1));
+  el('move-dialog').classList.remove('hidden');
+}
+
+function closeMoveDialog() { el('move-dialog').classList.add('hidden'); }
+
+function transferItem(store, mode) {
+  const { day, id } = moveState;
+  const targetDay = Number(el('move-target').value);
+  const item = itineraryState.data[`day${day}`]?.[id];
+  if (!item) { showToast('這個行程已經被刪除了'); closeMoveDialog(); return; }
+  if (mode === 'move' && targetDay === day) { showToast('已經在這一天了，請選擇其他天'); return; }
+  if (mode === 'move' && lockedByOther(day, id)) { showToast('有人正在編輯這個行程，暫時不能搬移'); return; }
+  store.set(`${PATH_ITINERARY}/day${targetDay}/${makeId()}`, {
+    ...item, createdAt: Date.now(), createdBy: identity.memberId, updatedBy: identity.memberId
+  });
+  if (mode === 'move') store.set(`${PATH_ITINERARY}/day${day}/${id}`, null);
+  closeMoveDialog();
+  showToast(`${mode === 'move' ? '已移到' : '已複製到'} Day ${targetDay + 1}`);
+}
+
 function saveItem(store) {
   const dayIndex = itineraryState.editingDay;
   const form = readItemForm();
@@ -684,6 +731,8 @@ function bindItinerary(store) {
     const editButton = event.target.closest('[data-edit]');
     const deleteButton = event.target.closest('[data-delete]');
     if (addButton) openItemDialog(Number(addButton.dataset.add), null);
+    const moveButton = event.target.closest('[data-move]');
+    if (moveButton) { const [day, id] = moveButton.dataset.move.split('|'); openMoveDialog(Number(day), id); }
     if (editButton) { const [day, id] = editButton.dataset.edit.split('|'); startEditing(store, Number(day), id); }
     if (deleteButton) {
       const [day, id] = deleteButton.dataset.delete.split('|');
@@ -693,6 +742,11 @@ function bindItinerary(store) {
       });
     }
   });
+
+  el('move-target').innerHTML = Array.from({ length: DAY_COUNT }, (_, i) => `<option value="${i}">Day ${i + 1}</option>`).join('');
+  el('move-cancel').addEventListener('click', closeMoveDialog);
+  el('move-copy').addEventListener('click', () => transferItem(store, 'copy'));
+  el('move-move').addEventListener('click', () => transferItem(store, 'move'));
 
   el('item-cancel').addEventListener('click', () => closeItemDialog(store));
   el('item-form').addEventListener('submit', event => {
@@ -726,8 +780,6 @@ function showView(viewName) {
 /* ---------- 共享點檢表 ---------- */
 const checklistState = {};
 
-const checklistProgress = {};
-
 function confirmedMemberIds(item) {
   return Object.keys(budgetState.members).filter(memberId => item.confirms?.[memberId] === true);
 }
@@ -735,11 +787,6 @@ function confirmedMemberIds(item) {
 function isChecklistItemDone(item) {
   const memberCount = Object.keys(budgetState.members).length;
   return memberCount > 0 && confirmedMemberIds(item).length === memberCount;
-}
-
-function updateChecklistProgress() {
-  const [done, total] = Object.values(checklistProgress).reduce(([d, t], [gd, gt]) => [d + gd, t + gt], [0, 0]);
-  el('check-progress').textContent = `${done} / ${total}`;
 }
 
 function renderChecklistItem(group, id, item) {
@@ -772,8 +819,6 @@ function renderChecklistGroup(group, itemMap) {
   el(`cl-list-${group.id}`).innerHTML = entries
     .map(([id, item]) => renderChecklistItem(group, id, item)).join('');
   el(`cl-suggest-${group.id}`).classList.toggle('hidden', entries.length > 0);
-  checklistProgress[group.id] = [entries.filter(([, item]) => isChecklistItemDone(item)).length, entries.length];
-  updateChecklistProgress();
 }
 
 function bindLodging(store) {
@@ -1431,7 +1476,6 @@ function buildReportHtml() {
 function renderMemos(memoMap) {
   memoState.data = memoMap;
   const entries = toEntries(memoMap).sort((a, b) => (a[1].createdAt || 0) - (b[1].createdAt || 0));
-  el('memo-progress').textContent = `${entries.filter(([, memo]) => memo.done).length} / ${entries.length}`;
   el('memo-list').innerHTML = entries.length === 0
     ? '<li class="text-center text-sm text-stone-400 py-6">還沒有備忘事項，新增第一個吧！</li>'
     : entries.map(([id, memo]) => `
