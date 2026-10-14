@@ -18,6 +18,23 @@
   #day-bar::-webkit-scrollbar { display: none; }
   .field { width: 100%; min-width: 0; max-width: 100%; box-sizing: border-box; border: 1px solid #d6d3d1; border-radius: .5rem; padding: .625rem .75rem; font-size: 1rem; background: #fff; }
   input[type="time"].field, input[type="date"].field { appearance: none; -webkit-appearance: none; min-height: 2.75rem; display: block; }
+  #print-report { display: none; }
+  #print-report h1 { font-size: 20pt; font-weight: 700; }
+  #print-report h2 { font-size: 14pt; font-weight: 700; margin: 18px 0 6px; padding-bottom: 3px; border-bottom: 2px solid #e0603f; }
+  #print-report h3 { font-size: 12pt; font-weight: 700; margin: 12px 0 4px; }
+  #print-report table { width: 100%; border-collapse: collapse; font-size: 10pt; margin-bottom: 6px; }
+  #print-report th, #print-report td { border: 1px solid #bbb; padding: 4px 6px; text-align: left; vertical-align: top; }
+  #print-report th { background: #f3eee6; }
+  #print-report tr { break-inside: avoid; }
+  #print-report .num { text-align: right; white-space: nowrap; }
+  #print-report .voided { color: #999; text-decoration: line-through; }
+  #print-report .muted { color: #666; font-size: 9pt; }
+  @media print {
+    body > *:not(#print-report) { display: none !important; }
+    #print-report { display: block !important; }
+    body { background: #fff; padding-bottom: 0; }
+    @page { margin: 14mm; }
+  }
   .sheet { max-height: 92vh; max-height: 92dvh; overflow-y: auto; overscroll-behavior: contain; padding-bottom: calc(1.25rem + env(safe-area-inset-bottom)); }
 </style>
 </head>
@@ -141,6 +158,7 @@ const TRIP_ROOM_ID = "osaka-family-2026";
       <summary class="font-bold cursor-pointer"><i class="fa-solid fa-clock-rotate-left text-[#e0603f] mr-2"></i>操作紀錄（<span id="audit-count">0</span>）</summary>
       <p class="text-xs text-stone-500 mt-2">公基金的新增、編輯、作廢、復原與匯率修改都會記在這裡，方便追查誰改了什麼。只顯示最近 60 筆。</p>
       <ul id="audit-list" class="mt-3 space-y-1.5"></ul>
+      <button id="audit-clear" type="button" class="mt-3 w-full border border-stone-300 text-stone-600 py-2 rounded-lg text-sm"><i class="fa-solid fa-broom mr-1"></i>清空操作紀錄</button>
     </details>
   </section>
 
@@ -177,6 +195,8 @@ const TRIP_ROOM_ID = "osaka-family-2026";
       <h3 class="font-bold"><i class="fa-solid fa-file-arrow-down text-[#e0603f] mr-2"></i>資料備份</h3>
       <p class="text-xs text-stone-500 mt-1">把行程、清單、公基金、記帳、備忘等全部資料下載成一個檔案。出發前、或大改動之前建議先備份一次。</p>
       <button id="backup-button" type="button" class="w-full mt-3 border border-[#e0603f] text-[#e0603f] font-bold py-2.5 rounded-lg">下載備份檔（JSON）</button>
+      <button id="pdf-button" type="button" class="w-full mt-2 bg-[#e0603f] text-white font-bold py-2.5 rounded-lg"><i class="fa-solid fa-file-pdf mr-1"></i>匯出 PDF（行程＋花費）</button>
+      <p class="text-xs text-stone-400 mt-1">會開啟列印畫面，請選「另存為 PDF」。內容含行程、公基金紀錄，以及你自己的自費紀錄（不含其他家人的）。</p>
       <p id="backup-status" class="text-xs text-stone-400 mt-2"></p>
     </div>
   </section>
@@ -210,7 +230,9 @@ const TRIP_ROOM_ID = "osaka-family-2026";
   </div>
 </div>
 
-<div id="toast" class="hidden fixed left-1/2 -translate-x-1/2 bottom-24 z-[80] max-w-[90vw] bg-stone-800 text-white text-sm rounded-full px-4 py-2 shadow-lg text-center"></div>
+<div id="print-report"></div>
+
+<div id="toast"class="hidden fixed left-1/2 -translate-x-1/2 bottom-24 z-[80] max-w-[90vw] bg-stone-800 text-white text-sm rounded-full px-4 py-2 shadow-lg text-center"></div>
 
 <div id="edit-dialog"class="hidden fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center">
   <form id="edit-form" class="sheet bg-white w-full max-w-md rounded-t-3xl sm:rounded-3xl p-5 space-y-3">
@@ -1170,6 +1192,15 @@ function bindFund(store) {
     budgetState.adjustments = adjustments || {};
     renderFund();
   });
+  el('audit-clear').addEventListener('click', () => {
+    if (toEntries(budgetState.audit).length === 0) { showToast('目前沒有操作紀錄'); return; }
+    askConfirm('確定清空所有操作紀錄？清空後無法復原，所有人的畫面都會同步清空（只會留下一筆「清空了操作紀錄」）。', '清空').then(ok => {
+      if (!ok) return;
+      store.set(PATH_AUDIT, null);
+      logAudit(store, '清空了操作紀錄');
+    });
+  });
+
   store.subscribe(PATH_AUDIT, audit => {
     budgetState.audit = audit || {};
     renderAudit();
@@ -1315,6 +1346,88 @@ function renderAttributedViews() {
   renderLodgingLock();
 }
 
+function yenWithTwd(amount) {
+  return `${formatYen(amount)}<br><span class="muted">${twdText(amount)}</span>`;
+}
+
+function reportItinerarySection() {
+  const days = Array.from({ length: DAY_COUNT }, (_, dayIndex) => ({ dayIndex, entries: sortedItems(dayIndex) }))
+    .filter(day => day.entries.length > 0);
+  if (days.length === 0) return '<p class="muted">尚未建立行程。</p>';
+  return days.map(({ dayIndex, entries }) => {
+    const theme = el(`day-theme-${dayIndex}`).value.trim();
+    const estimate = entries.reduce((sum, [, item]) => sum + (Number(item.cost) || 0), 0);
+    const rows = entries.map(([, item]) => `
+      <tr>
+        <td>${escapeHtml(formatTimeRange(item))}</td>
+        <td>${escapeHtml(item.name)}${item.note ? `<br><span class="muted">${escapeHtml(item.note)}</span>` : ''}</td>
+        <td>${TRANSPORT_ICONS[item.transport] || ''} ${escapeHtml(item.route || '')}</td>
+        <td class="num">${formatYen(item.cost)}</td>
+      </tr>`).join('');
+    return `
+      <h3>Day ${dayIndex + 1}${theme ? `　${escapeHtml(theme)}` : ''}　<span class="muted">預估 ${formatYen(estimate)}</span></h3>
+      <table><tr><th style="width:18%">時間</th><th>行程</th><th style="width:26%">交通</th><th style="width:14%">預估花費</th></tr>${rows}</table>`;
+  }).join('');
+}
+
+function reportFundSection() {
+  const expenseEntries = expensesWhere(isFundExpense);
+  const adjustmentEntries = toEntries(budgetState.adjustments);
+  const total = adjustmentEntries.reduce((sum, [, adjustment]) => sum + (adjustment.voided ? 0 : Number(adjustment.amount) || 0), 0);
+  const spent = sumAmounts(expenseEntries);
+  const records = [
+    ...adjustmentEntries.map(([, adjustment]) => ({
+      sortKey: adjustment.createdAt || 0, voided: adjustment.voided,
+      date: toDateString(new Date(adjustment.createdAt || 0)),
+      type: adjustment.amount >= 0 ? '增加總額' : '扣除總額',
+      text: adjustment.note || '', amount: adjustment.amount, by: adjustment.by
+    })),
+    ...expenseEntries.map(([, expense]) => ({
+      sortKey: expense.createdAt || 0, voided: expense.voided, date: expenseDate(expense),
+      type: '支出', text: expense.name, amount: -expense.amount, by: expense.by
+    }))
+  ].sort((a, b) => a.date.localeCompare(b.date) || a.sortKey - b.sortKey);
+  const rows = records.map(record => `
+    <tr class="${record.voided ? 'voided' : ''}">
+      <td>${escapeHtml(record.date)}</td><td>${record.type}${record.voided ? '（已作廢）' : ''}</td>
+      <td>${escapeHtml(record.text)}</td>
+      <td class="num">${record.amount >= 0 ? '+' : '-'}${formatYen(Math.abs(record.amount))}<br><span class="muted">${twdText(record.amount)}</span></td>
+      <td>${escapeHtml(memberName(record.by) || '')}</td>
+    </tr>`).join('');
+  return `
+    <table>
+      <tr><th>目前總額</th><th>已支出</th><th>剩餘</th></tr>
+      <tr><td>${yenWithTwd(total)}</td><td>${yenWithTwd(spent)}</td><td>${yenWithTwd(total - spent)}</td></tr>
+    </table>
+    ${records.length === 0 ? '<p class="muted">公基金還沒有紀錄。</p>' : `
+    <table><tr><th style="width:15%">日期</th><th style="width:16%">類型</th><th>項目／備註</th><th style="width:20%">金額</th><th style="width:12%">記錄者</th></tr>${rows}</table>`}`;
+}
+
+function reportPersonalSection() {
+  const entries = expensesWhere(expense => !isFundExpense(expense) && expense.source === identity.memberId)
+    .sort((a, b) => expenseDate(a[1]).localeCompare(expenseDate(b[1])) || (a[1].createdAt || 0) - (b[1].createdAt || 0));
+  const total = sumAmounts(entries);
+  const rows = entries.map(([, expense]) => `
+    <tr>
+      <td>${escapeHtml(expenseDate(expense))}</td><td>${EXPENSE_CATEGORIES[expense.category] || EXPENSE_CATEGORIES.other}</td>
+      <td>${escapeHtml(expense.name)}</td><td class="num">${yenWithTwd(expense.amount)}</td>
+    </tr>`).join('');
+  return entries.length === 0 ? '<p class="muted">尚無自費紀錄。</p>' : `
+    <table><tr><th style="width:18%">日期</th><th style="width:18%">類別</th><th>項目</th><th style="width:20%">金額</th></tr>${rows}
+    <tr><td colspan="3"><b>合計</b></td><td class="num"><b>${yenWithTwd(total)}</b></td></tr></table>`;
+}
+
+function buildReportHtml() {
+  const lodging = el('lodging').value.trim();
+  return `
+    <h1>大阪 9天8夜　行程與花費紀錄</h1>
+    <p class="muted">匯出日期：${todayString()}　匯出者：${escapeHtml(memberName(identity.memberId) || '')}　匯率：1 日圓 ≈ NT$${effectiveRate()}（台幣為參考金額）</p>
+    ${lodging ? `<h2>住宿位置</h2><p style="white-space:pre-line">${escapeHtml(lodging)}</p>` : ''}
+    <h2>行程</h2>${reportItinerarySection()}
+    <h2>公基金</h2>${reportFundSection()}
+    <h2>${escapeHtml(memberName(identity.memberId) || '')} 的自費紀錄</h2>${reportPersonalSection()}`;
+}
+
 function renderMemos(memoMap) {
   memoState.data = memoMap;
   const entries = toEntries(memoMap).sort((a, b) => (a[1].createdAt || 0) - (b[1].createdAt || 0));
@@ -1357,6 +1470,12 @@ function bindNotes(store) {
     askConfirm('確定刪除這個備忘事項？所有人的畫面都會同步移除。').then(ok => {
       if (ok) store.set(`${PATH_MEMOS}/${memoId}`, null);
     });
+  });
+
+  el('pdf-button').addEventListener('click', () => {
+    if (!identity.memberId) { showToast('請先從右上角選擇你的身分'); return; }
+    el('print-report').innerHTML = buildReportHtml();
+    window.print();
   });
 
   el('backup-button').addEventListener('click', () => {
