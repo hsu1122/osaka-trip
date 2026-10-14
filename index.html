@@ -17,7 +17,7 @@
   .timeline-line { position: absolute; left: 11px; top: 8px; bottom: -22px; width: 2px; background: #e8dfd2; }
   #day-bar::-webkit-scrollbar { display: none; }
   .field { width: 100%; min-width: 0; max-width: 100%; box-sizing: border-box; border: 1px solid #d6d3d1; border-radius: .5rem; padding: .625rem .75rem; font-size: 1rem; background: #fff; }
-  input[type="time"].field { appearance: none; -webkit-appearance: none; min-height: 2.75rem; }
+  input[type="time"].field, input[type="date"].field { appearance: none; -webkit-appearance: none; min-height: 2.75rem; display: block; }
   .sheet { max-height: 92vh; max-height: 92dvh; overflow-y: auto; overscroll-behavior: contain; padding-bottom: calc(1.25rem + env(safe-area-inset-bottom)); }
 </style>
 </head>
@@ -149,9 +149,9 @@ const TRIP_ROOM_ID = "osaka-family-2026";
 
     <form id="family-form" class="bg-white rounded-2xl border border-stone-200 shadow-sm p-4 space-y-3 mb-4">
       <h3 class="font-bold"><i class="fa-solid fa-receipt text-[#e0603f] mr-2"></i>新增自費花費<span id="family-who" class="text-[#e0603f]"></span></h3>
-      <div class="grid grid-cols-2 gap-2">
-        <div><label class="text-xs text-stone-500">消費日期</label><input id="family-date" type="date" required class="field mt-1"></div>
-        <div><label class="text-xs text-stone-500">類別</label><select id="family-category" class="field mt-1"></select></div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div class="min-w-0"><label class="text-xs text-stone-500">消費日期</label><input id="family-date" type="date" required class="field mt-1"></div>
+        <div class="min-w-0"><label class="text-xs text-stone-500">類別</label><select id="family-category" class="field mt-1"></select></div>
       </div>
       <input id="family-name" type="text" required maxlength="40" placeholder="項目（例：章魚燒、藥妝）" class="field">
       <input id="family-amount" type="number" inputmode="numeric" min="1" step="1" required placeholder="金額（日圓）" class="field">
