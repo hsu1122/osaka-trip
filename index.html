@@ -206,20 +206,30 @@ const TRIP_ROOM_ID = "osaka-h7x4pdycsskfxpgpyly9p9cn";
   <div class="max-w-md mx-auto p-6 pt-16">
     <p class="text-xs font-bold tracking-widest text-[#e0603f]">WHO ARE YOU</p>
     <h2 class="text-2xl font-bold mt-1">你是誰？</h2>
-    <p class="text-sm text-stone-500 mt-2">選擇你的名字。之後你新增、編輯、記帳的內容都會自動記在你名下，不用再另外填。</p>
-    <ul id="identity-list" class="space-y-2 mt-5"></ul>
-    <form id="identity-form" class="mt-5 space-y-2">
-      <p class="text-sm font-medium">找不到名字？新增自己</p>
-      <div class="flex gap-2">
-        <input id="identity-name" type="text" required maxlength="10" placeholder="輸入你的名字" class="field">
-        <button type="submit" class="shrink-0 bg-[#e0603f] text-white font-bold px-4 rounded-lg">加入</button>
+    <p class="text-sm text-stone-500 mt-2">選擇你的名字並輸入手機號碼當作密碼。之後你新增、編輯、記帳的內容都會自動記在你名下。</p>
+    <form id="identity-form" class="mt-5 space-y-3">
+      <label class="block text-sm font-medium">名字
+        <select id="identity-select" aria-label="選擇成員" class="field mt-1"></select>
+      </label>
+      <label id="identity-new-wrap" class="hidden block text-sm font-medium">你的名字
+        <input id="identity-name" type="text" maxlength="10" placeholder="輸入你的名字" aria-label="新名字" class="field mt-1">
+      </label>
+      <div id="identity-fields" class="hidden space-y-3">
+        <p id="identity-hint" class="text-xs text-stone-500"></p>
+        <label class="block text-sm font-medium">手機號碼（密碼）
+          <input id="identity-phone" type="password" inputmode="numeric" autocomplete="off" placeholder="例：0912345678" aria-label="手機號碼" class="field mt-1">
+        </label>
+        <label id="identity-confirm-wrap" class="hidden block text-sm font-medium">再輸入一次
+          <input id="identity-phone-confirm" type="password" inputmode="numeric" autocomplete="off" placeholder="再輸入一次手機號碼" aria-label="再輸入一次手機號碼" class="field mt-1">
+        </label>
+        <p id="identity-error" role="alert" class="text-sm text-red-600 hidden"></p>
+        <button id="identity-submit" type="submit" class="w-full bg-[#e0603f] text-white font-bold py-3 rounded-lg disabled:opacity-60">登入</button>
+        <p class="text-xs text-stone-400">手機號碼只會以加密後的雜湊形式保存，畫面上不會顯示。</p>
       </div>
-      <p id="identity-error" class="text-sm text-red-600 hidden"></p>
     </form>
     <button id="identity-close" type="button" class="hidden w-full mt-4 border border-stone-300 py-2.5 rounded-lg font-medium">取消</button>
   </div>
 </div>
-
 <div id="confirm-dialog" class="hidden fixed inset-0 z-[60] bg-black/40 flex items-center justify-center p-6">
   <div class="bg-white rounded-2xl p-5 w-full max-w-sm">
     <p id="confirm-message" class="text-base leading-relaxed"></p>
@@ -351,6 +361,13 @@ class FirebaseStore {
   }
   set(path, value) { return this.database.ref(`${this.rootPath}/${path}`).set(value); }
   update(path, patch) { return this.database.ref(`${this.rootPath}/${path}`).update(patch); }
+  read(path) { return this.database.ref(`${this.rootPath}/${path}`).once('value').then(snapshot => snapshot.val()); }
+  setIfAbsent(path, value) {
+    return this.database.ref(`${this.rootPath}/${path}`).transaction(current => (current === null ? value : undefined)).then(result => result.committed);
+  }
+  increment(path, delta = 1) {
+    return this.database.ref(`${this.rootPath}/${path}`).transaction(current => (Number(current) || 0) + delta).then(result => Number(result.snapshot.val()));
+  }
   tryLock(path, owner, staleMs) {
     const ref = this.database.ref(`${this.rootPath}/${path}`);
     return ref.transaction(current => {
@@ -406,6 +423,15 @@ class LocalStore {
     Object.entries(patch).forEach(([field, value]) => this.set(`${path}/${field}`, value));
     return Promise.resolve();
   }
+  read(path) { return Promise.resolve(this.readPath(path)); }
+  setIfAbsent(path, value) {
+    if (this.readPath(path) !== null) return Promise.resolve(false);
+    return this.set(path, value).then(() => true);
+  }
+  increment(path, delta = 1) {
+    const next = (Number(this.readPath(path)) || 0) + delta;
+    return this.set(path, next).then(() => next);
+  }
   tryLock(path, owner, staleMs) {
     const current = this.readPath(path);
     const isFree = !current || current.by === owner || Date.now() - (current.at || 0) > staleMs;
@@ -436,7 +462,7 @@ function makeId() { return Date.now().toString(36) + Math.random().toString(36).
 function toEntries(map) { return Object.entries(map || {}); }
 function el(id) { return document.getElementById(id); }
 
-/* ---------- 使用者身分（選名字即可，沒有密碼驗證） ---------- */
+/* ---------- 使用者身分（選名字並以手機號碼驗證） ---------- */
 const STORAGE_KEY_IDENTITY = 'osakaTrip.identity';
 const identity = { memberId: null, rosterLoaded: false, forcePick: false };
 try { identity.memberId = localStorage.getItem(STORAGE_KEY_IDENTITY); } catch (error) { /* 無法讀取時每次開啟都重新選擇 */ }
@@ -449,6 +475,58 @@ function bylineHtml(prefix, memberId) {
   const name = memberName(memberId);
   return name ? `<span class="text-xs text-stone-400">${prefix} ${escapeHtml(name)}</span>` : '';
 }
+
+/* ---------- 登入：手機號碼當密碼（只保存慢速雜湊，與 React 版格式相同、密碼通用） ---------- */
+const PATH_CREDENTIALS = 'credentials';
+const PATH_LOGIN_COUNTS = 'loginCounts';
+const PBKDF2_ITERATIONS = 300000;
+const PBKDF2_SALT_BYTES = 16;
+const PBKDF2_HASH_BITS = 256;
+const PHONE_MIN_DIGITS = 8;
+const PHONE_MAX_DIGITS = 15;
+const LOGIN_MAX_ATTEMPTS = 5;
+const LOGIN_LOCK_MS = 30000;
+const NEW_MEMBER_OPTION = '__new__';
+const loginThrottles = {};
+
+function normalizePhone(input) { return String(input).replace(/\D/g, ''); }
+
+function validatePhone(input) {
+  const digits = normalizePhone(input);
+  if (digits.length === 0) return '請輸入手機號碼。';
+  if (digits.length < PHONE_MIN_DIGITS || digits.length > PHONE_MAX_DIGITS) return `手機號碼需要 ${PHONE_MIN_DIGITS} 到 ${PHONE_MAX_DIGITS} 位數字。`;
+  return null;
+}
+
+function bytesToBase64(bytes) { return btoa(String.fromCharCode(...bytes)); }
+function base64ToBytes(text) { return Uint8Array.from(atob(text), char => char.charCodeAt(0)); }
+
+async function derivePasswordHash(secret, saltBytes, iterations) {
+  const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(secret), 'PBKDF2', false, ['deriveBits']);
+  const bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', hash: 'SHA-256', salt: saltBytes, iterations }, key, PBKDF2_HASH_BITS);
+  return bytesToBase64(new Uint8Array(bits));
+}
+
+async function hashPassword(secret) {
+  const salt = crypto.getRandomValues(new Uint8Array(PBKDF2_SALT_BYTES));
+  return {
+    algorithm: 'PBKDF2-SHA256',
+    salt: bytesToBase64(salt),
+    hash: await derivePasswordHash(secret, salt, PBKDF2_ITERATIONS),
+    iterations: PBKDF2_ITERATIONS,
+    createdAt: Date.now()
+  };
+}
+
+async function verifyPassword(secret, credential) {
+  return (await derivePasswordHash(secret, base64ToBytes(credential.salt), credential.iterations)) === credential.hash;
+}
+
+/** 連續輸入錯誤太多次會暫時鎖住（只在這個分頁內計算） */
+function throttleOf(memberId) {
+  return loginThrottles[memberId] || (loginThrottles[memberId] = { failures: 0, lockedUntil: 0 });
+}
+function lockRemainingSeconds(throttle) { return Math.max(0, Math.ceil((throttle.lockedUntil - Date.now()) / 1000)); }
 
 function chooseIdentity(memberId) {
   identity.memberId = memberId;
@@ -465,40 +543,130 @@ function refreshIdentity() {
   el('identity-dialog').classList.toggle('hidden', !needsPick);
   el('identity-close').classList.toggle('hidden', !identity.memberId);
   el('identity-badge').textContent = identity.memberId ? `👤 ${memberName(identity.memberId)}・切換` : '選擇身分';
-  const members = toEntries(budgetState.members);
-  el('identity-list').innerHTML = members.length === 0
-    ? '<li class="text-sm text-stone-400">還沒有人，請在下方輸入你的名字。</li>'
-    : members.map(([id, member]) => `
-      <li><button data-pick="${escapeHtml(id)}" class="w-full text-left bg-white border border-stone-200 rounded-xl px-4 py-3.5 text-lg font-medium active:bg-orange-50">👤 ${escapeHtml(member.name)}</button></li>`).join('');
+  const select = el('identity-select');
+  const previous = select.value;
+  select.innerHTML = '<option value="">請選擇你的名字</option>' +
+    toEntries(budgetState.members).map(([id, member]) => `<option value="${escapeHtml(id)}">👤 ${escapeHtml(member.name)}</option>`).join('') +
+    `<option value="${NEW_MEMBER_OPTION}">＋ 我不在名單裡，新增自己</option>`;
+  if ([...select.options].some(option => option.value === previous)) select.value = previous;
   el('family-who').textContent = identity.memberId ? `（${memberName(identity.memberId)}）` : '';
 }
 
 function bindIdentity(store) {
-  el('identity-list').addEventListener('click', event => {
-    const button = event.target.closest('[data-pick]');
-    if (button) chooseIdentity(button.dataset.pick);
-  });
-  el('identity-form').addEventListener('submit', event => {
-    event.preventDefault();
-    const name = el('identity-name').value.trim();
-    if (!name) return;
+  const showError = message => {
     const error = el('identity-error');
+    error.textContent = message || '';
+    error.classList.toggle('hidden', !message);
+  };
+
+  const resetLoginForm = () => {
+    el('identity-select').value = '';
+    el('identity-name').value = '';
+    el('identity-phone').value = '';
+    el('identity-phone-confirm').value = '';
+    el('identity-new-wrap').classList.add('hidden');
+    el('identity-fields').classList.add('hidden');
+    showError('');
+  };
+
+  /** 依選到的項目顯示對應欄位：新增自己、第一次設定密碼、或一般登入 */
+  const showFieldsFor = async value => {
+    showError('');
+    el('identity-phone').value = '';
+    el('identity-phone-confirm').value = '';
+    const isNew = value === NEW_MEMBER_OPTION;
+    el('identity-new-wrap').classList.toggle('hidden', !isNew);
+    el('identity-fields').classList.toggle('hidden', !value);
+    if (!value) return;
+    const needsConfirm = isNew || !(await store.read(`${PATH_CREDENTIALS}/${value}`));
+    if (el('identity-select').value !== value) return;
+    el('identity-confirm-wrap').classList.toggle('hidden', !needsConfirm);
+    el('identity-hint').textContent = needsConfirm
+      ? '第一次使用：請輸入你的手機號碼當作密碼，之後每次登入都要輸入。'
+      : '請輸入你的手機號碼（密碼）。';
+    el('identity-submit').textContent = needsConfirm ? '設定密碼並登入' : '登入';
+  };
+
+  const finishLogin = async memberId => {
+    await store.increment(`${PATH_LOGIN_COUNTS}/${memberId}/count`);
+    await store.set(`${PATH_LOGIN_COUNTS}/${memberId}/lastLoginAt`, Date.now());
+    resetLoginForm();
+    chooseIdentity(memberId);
+  };
+
+  /** 第一次設定密碼（已經有密碼時不會覆蓋） */
+  const register = async (memberId, phone, confirmPhone) => {
+    const invalid = validatePhone(phone);
+    if (invalid) return invalid;
+    if (normalizePhone(phone) !== normalizePhone(confirmPhone)) return '兩次輸入的手機號碼不一樣，請再確認。';
+    const created = await store.setIfAbsent(`${PATH_CREDENTIALS}/${memberId}`, await hashPassword(normalizePhone(phone)));
+    if (!created) return '這個名字剛剛被別人設定了密碼，請改用「登入」輸入密碼。';
+    await finishLogin(memberId);
+    return null;
+  };
+
+  const signIn = async (memberId, phone, confirmPhone) => {
+    const invalid = validatePhone(phone);
+    if (invalid) return invalid;
+    const credential = await store.read(`${PATH_CREDENTIALS}/${memberId}`);
+    if (!credential) return register(memberId, phone, confirmPhone);
+    const throttle = throttleOf(memberId);
+    if (Date.now() < throttle.lockedUntil) return `輸入錯誤太多次，請等 ${lockRemainingSeconds(throttle)} 秒後再試。`;
+    if (!(await verifyPassword(normalizePhone(phone), credential))) {
+      throttle.failures += 1;
+      if (throttle.failures >= LOGIN_MAX_ATTEMPTS) {
+        throttle.lockedUntil = Date.now() + LOGIN_LOCK_MS;
+        throttle.failures = 0;
+        return `輸入錯誤太多次，請等 ${lockRemainingSeconds(throttle)} 秒後再試。`;
+      }
+      return `密碼不正確，還可以再試 ${LOGIN_MAX_ATTEMPTS - throttle.failures} 次。`;
+    }
+    throttle.failures = 0;
+    throttle.lockedUntil = 0;
+    await finishLogin(memberId);
+    return null;
+  };
+
+  const signUpNew = async (rawName, phone, confirmPhone) => {
+    const name = rawName.trim();
+    if (!name) return '請輸入名字。';
+    const invalid = validatePhone(phone);
+    if (invalid) return invalid;
+    if (normalizePhone(phone) !== normalizePhone(confirmPhone)) return '兩次輸入的手機號碼不一樣，請再確認。';
     const duplicateId = Object.keys(budgetState.members)
       .find(id => normalizeName(budgetState.members[id].name) === normalizeName(name));
-    if (duplicateId) {
-      error.textContent = `名單裡已經有「${budgetState.members[duplicateId].name}」了，請直接從上方名單點選。`;
-      error.classList.remove('hidden');
-      return;
-    }
-    error.classList.add('hidden');
+    if (duplicateId) return `名單裡已經有「${budgetState.members[duplicateId].name}」了，請直接從名單點選。`;
     const memberId = makeId();
     budgetState.members[memberId] = { name };
-    store.set(`${PATH_MEMBERS}/${memberId}`, { name });
-    el('identity-name').value = '';
-    chooseIdentity(memberId);
+    await store.set(`${PATH_MEMBERS}/${memberId}`, { name });
+    return register(memberId, phone, confirmPhone);
+  };
+
+  el('identity-select').addEventListener('change', event => { showFieldsFor(event.target.value); });
+
+  el('identity-form').addEventListener('submit', async event => {
+    event.preventDefault();
+    const selected = el('identity-select').value;
+    const submit = el('identity-submit');
+    if (!selected || submit.disabled) return;
+    if (!(window.crypto && crypto.subtle)) { showError('這個瀏覽器不支援加密功能，請改用 Safari 或 Chrome 開啟（需要 https 網址）。'); return; }
+    submit.disabled = true;
+    try {
+      const phone = el('identity-phone').value;
+      const confirmPhone = el('identity-phone-confirm').value;
+      const message = selected === NEW_MEMBER_OPTION
+        ? await signUpNew(el('identity-name').value, phone, confirmPhone)
+        : await signIn(selected, phone, confirmPhone);
+      showError(message);
+    } catch (error) {
+      showError('登入時發生問題，請確認網路後再試一次。');
+    } finally {
+      submit.disabled = false;
+    }
   });
+
   el('identity-badge').addEventListener('click', () => { identity.forcePick = true; refreshIdentity(); });
-  el('identity-close').addEventListener('click', () => { identity.forcePick = false; refreshIdentity(); });
+  el('identity-close').addEventListener('click', () => { identity.forcePick = false; resetLoginForm(); refreshIdentity(); });
 }
 
 /* 手機的內建瀏覽器（LINE、FB 等）常會擋掉原生 confirm()，改用頁面內的確認視窗 */
